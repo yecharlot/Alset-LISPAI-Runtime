@@ -46,6 +46,13 @@ export const CATALOG = [
     { type: 'anim-slide', label: 'Anim slide', defaults: { duration: 400 }, container: true },
     { type: 'anim-scale', label: 'Anim scale', defaults: { duration: 350 }, container: true },
   ]},
+  { group: 'Móvil / shell', items: [
+    { type: 'hamburger', label: 'Hamburguesa', defaults: { state: 'drawerOpen' } },
+    { type: 'drawer', label: 'Menú lateral', defaults: { title: 'Menú', state: 'drawerOpen', side: 'left', open: false }, container: true },
+    { type: 'side-menu', label: 'Side menu', defaults: { title: 'Navegación', state: 'drawerOpen', side: 'left' }, container: true },
+    { type: 'tabs-shell', label: 'Tabs (shell)', defaults: { tabs: 'Inicio,Explorar,Perfil', state: 'tab' }, container: true },
+    { type: 'splash', label: 'Splash', defaults: { title: 'Alset', subtitle: 'Cargando…', duration: 1600, animated: true, autoHide: true, state: 'splash' } },
+  ]},
 ];
 
 export const TEMPLATES = [
@@ -89,6 +96,36 @@ export const TEMPLATES = [
     },
   },
   {
+    id: 'mobile-shell',
+    name: 'App móvil (shell)',
+    build() {
+      const root = createNode('column', { gap: 0, pad: 0 });
+      root.children.push(createNode('splash', { title: 'Mi App', subtitle: 'Offline first', duration: 1400, animated: true }));
+      const top = createNode('row', { gap: 10, pad: 10 });
+      top.children.push(createNode('hamburger', { state: 'drawerOpen' }));
+      top.children.push(createNode('text', { text: 'Inicio', size: 18, weight: 'bold', color: 'primary' }));
+      root.children.push(top);
+      const drawer = createNode('drawer', { title: 'Menú', state: 'drawerOpen', side: 'left', open: false });
+      drawer.children.push(createNode('button', { text: 'Inicio', action: 'home' }));
+      drawer.children.push(createNode('button', { text: 'Perfil', action: 'profile' }));
+      drawer.children.push(createNode('button', { text: 'Ajustes', action: 'settings' }));
+      root.children.push(drawer);
+      const tabs = createNode('tabs-shell', { tabs: 'Inicio,Datos,Yo', state: 'mainTab' });
+      const t1 = createNode('column', { gap: 10, pad: 12 });
+      t1.children.push(createNode('hero', { title: 'Mobile first', subtitle: 'Swipe → menú · gestos en preview' }));
+      t1.children.push(createNode('metric', { title: 'Pulses', value: '0', state: 'pulses' }));
+      const t2 = createNode('column', { gap: 10, pad: 12 });
+      t2.children.push(createNode('api', { url: '/v1/health', state: 'apiData', auto: true }));
+      t2.children.push(createNode('list', { state: 'apiData', empty: 'Sin red · offline' }));
+      const t3 = createNode('column', { gap: 10, pad: 12 });
+      t3.children.push(createNode('text', { text: 'Perfil local', size: 16, weight: 'bold' }));
+      t3.children.push(createNode('persist', { key: 'app.v1', state: 'pulses' }));
+      tabs.children.push(t1, t2, t3);
+      root.children.push(tabs);
+      return [root];
+    },
+  },
+  {
     id: 'crud',
     name: 'CRUD fullstack',
     build() {
@@ -125,7 +162,7 @@ export function uid() { return 'n' + (_id++); }
 export function createNode(type, defaults = {}) {
   const meta = CATALOG.flatMap((g) => g.items).find((i) => i.type === type);
   const d = { ...(meta?.defaults || {}), ...defaults };
-  const container = meta?.container || ['column', 'row', 'card', 'form', 'anim-fade', 'anim-slide', 'anim-scale', 'auth-gate', 'gate'].includes(type);
+  const container = meta?.container || ['column', 'row', 'card', 'form', 'anim-fade', 'anim-slide', 'anim-scale', 'auth-gate', 'gate', 'drawer', 'side-menu', 'tabs-shell'].includes(type);
   return {
     id: uid(),
     type,

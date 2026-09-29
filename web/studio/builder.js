@@ -155,38 +155,96 @@ function renderCanvas() {
   tree.forEach((n) => canvas.appendChild(nodeEl(n)));
 }
 
+
 function renderProps() {
   const props = $('props');
   props.innerHTML = '';
   const hit = selectedId ? findNode(tree, selectedId) : null;
   if (!hit) {
-    props.innerHTML = '<p class="hint-text">Selecciona un nodo</p>';
+    props.innerHTML = '<p class="hint-text">Selecciona un nodo en el canvas o en el preview</p>';
     return;
   }
   const n = hit.node;
+  if (!n.props) n.props = {};
   const title = document.createElement('div');
   title.innerHTML = `<strong>${n.type}</strong> <code>${n.id}</code>`;
   props.appendChild(title);
-  Object.keys(n.props || {}).forEach((k) => {
+
+  const ensure = (k, def) => {
+    if (n.props[k] === undefined || n.props[k] === null) n.props[k] = def;
+  };
+  // layout + style defaults so they always appear in the form
+  ['text', 'title', 'subtitle', 'action', 'state', 'url', 'placeholder', 'tabs', 'bg', 'color', 'size', 'weight', 'x', 'y', 'width', 'height', 'radius', 'opacity', 'side', 'duration', 'animated', 'open'].forEach((k) => {
+    if (k in (n.props || {}) || ['x','y','width','height','bg','color','radius','opacity'].includes(k)) {
+      if (!(k in n.props)) n.props[k] = '';
+    }
+  });
+  // Always show layout block for any node
+  const layoutKeys = ['x', 'y', 'width', 'height', 'bg', 'color', 'radius', 'opacity', 'size'];
+  layoutKeys.forEach((k) => {
+    if (!(k in n.props)) n.props[k] = n.props[k] ?? '';
+  });
+
+  const section = (label) => {
+    const h = document.createElement('h4');
+    h.className = 'props-section';
+    h.textContent = label;
+    props.appendChild(h);
+  };
+
+  section('Contenido / datos');
+  Object.keys(n.props).filter((k) => !layoutKeys.includes(k) && k !== 'devices').forEach((k) => {
     const wrap = document.createElement('div');
     wrap.className = 'field';
     wrap.innerHTML = `<label>${k}</label>`;
-    const input = document.createElement('input');
+    const input = document.createElement(k === 'text' || k === 'subtitle' || k === 'deny' ? 'textarea' : 'input');
     input.value = n.props[k] ?? '';
-    // fluid typing: update prop without full canvas rebuild until blur optional
+    if (k === 'color' || k === 'bg') {
+      input.placeholder = '#hex o primary|muted|…';
+    }
     input.addEventListener('input', () => {
-      n.props[k] = input.value;
+      let v = input.value;
+      if (['x','y','width','height','radius','opacity','size','duration'].includes(k) && v !== '' && !isNaN(Number(v))) v = Number(v);
+      if (v === 'true') v = true;
+      if (v === 'false') v = false;
+      n.props[k] = v;
       if (!lispDirty) $('lisp').value = treeToLisp(tree);
-      // granular: only preview refresh
       paintPreviewOnly();
     });
     wrap.appendChild(input);
     props.appendChild(wrap);
   });
+
+  section('Layout · ' + deviceId + ' (preview)');
+  const devHint = document.createElement('p');
+  devHint.className = 'hint-text';
+  devHint.textContent = 'Los cambios de arrastre se guardan en devices.' + deviceId + ' y afectan solo ese dispositivo.';
+  props.appendChild(devHint);
+  layoutKeys.forEach((k) => {
+    const wrap = document.createElement('div');
+    wrap.className = 'field';
+    wrap.innerHTML = `<label>${k}</label>`;
+    const input = document.createElement('input');
+    const d = (n.props.devices && n.props.devices[deviceId]) || {};
+    const val = d[k] != null ? d[k] : (n.props[k] ?? '');
+    input.value = val;
+    input.addEventListener('input', () => {
+      let v = input.value;
+      if (v !== '' && !isNaN(Number(v)) && k !== 'bg' && k !== 'color') v = Number(v);
+      if (!n.props.devices) n.props.devices = {};
+      if (!n.props.devices[deviceId]) n.props.devices[deviceId] = {};
+      n.props.devices[deviceId][k] = v;
+      n.props[k] = v; // mirror base for deploy default
+      paintPreviewOnly();
+    });
+    wrap.appendChild(input);
+    props.appendChild(wrap);
+  });
+
   const del = document.createElement('button');
   del.type = 'button';
   del.className = 'btn btn-ghost';
-  del.textContent = 'Eliminar';
+  del.textContent = 'Eliminar nodo';
   del.onclick = () => {
     hit.list.splice(hit.index, 1);
     selectedId = null;
@@ -195,18 +253,55 @@ function renderProps() {
   props.appendChild(del);
 }
 
+
+
+function applyLayoutChange(nodeId, dev, patch) {
+  const hit = findNode(tree, nodeId);
+  if (!hit) return;
+  const n = hit.node;
+  if (!n.props) n.props = {};
+  if (!n.props.devices) n.props.devices = {};
+  if (!n.props.devices[dev]) n.props.devices[dev] = {};
+  Object.assign(n.props.devices[dev], patch);
+  Object.assign(n.props, patch);
+  selectedId = nodeId;
+  // light update: re-render props values + preview without full canvas rebuild thrash
+  paintPreviewOnly();
+  // debounce props panel
+  if (!applyLayoutChange._t) {
+    applyLayoutChange._t = setTimeout(() => {
+      applyLayoutChange._t = null;
+      renderProps();
+    }, 120);
+  }
+}
+
 function paintPreviewOnly() {
   const device = DEVICES.find((d) => d.id === deviceId) || DEVICES[0];
-  guard('preview', () =>
-    renderAlsetPreview($('preview'), tree, log, { device })
-  );
-  // dump states without remounting — alsetState already recomposes granularly
+  const host = $('preview');
+  guard('preview', () => {
+    if (window.AlsetAppRuntime && window.AlsetAppRuntime.mount) {
+      window.AlsetAppRuntime.mount(host, {
+        device,
+        tree,
+        states: stateDump(),
+        interactive: true,
+        selectedId,
+        log,
+        onLayoutChange: applyLayoutChange,
+        onEvent: (type, payload) => log('evento ' + type + ' ' + JSON.stringify(payload || {})),
+      });
+    } else {
+      renderAlsetPreview(host, tree, log, { device });
+    }
+  });
   $('appjson').textContent = JSON.stringify(
-    treeToApp(tree, { name: $('app-name').value, states: stateDump() }),
+    treeToApp(tree, { name: $('app-name').value, states: stateDump(), device: deviceId }),
     null,
     2
   );
 }
+
 
 function refresh() {
   guard('refresh', () => {

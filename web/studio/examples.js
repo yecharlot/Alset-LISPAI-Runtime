@@ -65,6 +65,33 @@ function motionShowcase() {
   return [c];
 }
 
+function mobileApp() {
+  const root = createNode('column', { gap: 0, pad: 0 });
+  root.children.push(createNode('splash', { title: 'Alset', subtitle: 'Mobile · offline', duration: 1200, animated: true }));
+  const top = createNode('row', { gap: 10, pad: 10 });
+  top.children.push(createNode('hamburger', { state: 'drawerOpen' }));
+  top.children.push(createNode('text', { text: 'Feed', size: 18, weight: 'bold', color: 'primary' }));
+  root.children.push(top);
+  const drawer = createNode('drawer', { title: 'Menú', state: 'drawerOpen', side: 'left' });
+  drawer.children.push(createNode('button', { text: 'Inicio', action: 'home' }));
+  drawer.children.push(createNode('button', { text: 'Buscar', action: 'search' }));
+  root.children.push(drawer);
+  const tabs = createNode('tabs-shell', { tabs: 'Inicio,API,Yo', state: 'tab' });
+  const a = createNode('column', { gap: 10, pad: 12 });
+  a.children.push(createNode('hero', { title: 'Gestos nativos', subtitle: 'Swipe abre el menú en el emulador' }));
+  a.children.push(createNode('button', { text: 'Pulse', action: 'pulse', state: 'pulses' }));
+  a.children.push(createNode('metric', { title: 'Pulses', state: 'pulses', value: '0' }));
+  const b = createNode('column', { gap: 8, pad: 12 });
+  b.children.push(createNode('api', { url: '/v1/health', state: 'apiData', auto: true }));
+  b.children.push(createNode('list', { state: 'apiData' }));
+  const c = createNode('column', { gap: 8, pad: 12 });
+  c.children.push(createNode('text', { text: 'Offline', size: 16, weight: 'bold' }));
+  c.children.push(createNode('persist', { key: 'alset.mobile', state: 'pulses' }));
+  tabs.children.push(a, b, c);
+  root.children.push(tabs);
+  return [root];
+}
+
 export const EXAMPLES = [
   {
     id: 'landing',
@@ -100,5 +127,12 @@ export const EXAMPLES = [
     blurb: 'Tres animaciones Alset-JS Animate',
     tags: ['motion'],
     build: motionShowcase,
+  },
+  {
+    id: 'mobile',
+    name: 'App móvil first',
+    blurb: 'Splash · hamburguesa · drawer · tabs · gestos · offline',
+    tags: ['mobile', 'pwa', 'gestures'],
+    build: mobileApp,
   },
 ];

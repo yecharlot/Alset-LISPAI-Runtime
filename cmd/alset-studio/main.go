@@ -170,153 +170,69 @@ func main() {
 		_ = os.WriteFile(filepath.Join(appDir, "manifest.webmanifest"), []byte(manifest), 0o644)
 
 		sw := `const C='alset-app-v1';
-self.addEventListener('install',e=>{e.waitUntil(caches.open(C).then(c=>c.addAll(['./','./index.html','./app.alset.json','./manifest.webmanifest'])));self.skipWaiting()});
+self.addEventListener('install',e=>{e.waitUntil(caches.open(C).then(c=>c.addAll(['./','./index.html','./app.alset.json','./manifest.webmanifest','./app-runtime.js'])));self.skipWaiting()});
 self.addEventListener('activate',e=>e.waitUntil(self.clients.claim()));
 self.addEventListener('fetch',e=>{e.respondWith(caches.match(e.request).then(h=>h||fetch(e.request)))});`
 		_ = os.WriteFile(filepath.Join(appDir, "sw.js"), []byte(sw), 0o644)
 
+		// Copy shared runtime into the app (same painter as Studio preview)
+		rtSrc := filepath.Join(root, "runtime", "app-runtime.js")
+		if b, err := os.ReadFile(rtSrc); err == nil {
+			_ = os.WriteFile(filepath.Join(appDir, "app-runtime.js"), b, 0o644)
+		}
+
 		index := fmt.Sprintf(`<!DOCTYPE html>
 <html lang="es"><head>
-<meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,maximum-scale=1,user-scalable=no"/>
 <meta name="theme-color" content="#0b0e14"/>
+<meta name="apple-mobile-web-app-capable" content="yes"/>
+<meta name="mobile-web-app-capable" content="yes"/>
 <link rel="manifest" href="manifest.webmanifest"/>
 <title>%s · Alset</title>
 <style>
-:root{--bg:#0b0e14;--card:#12171f;--gold:#e8c547;--text:#eef1f6;--muted:#8b93a7}
-*{box-sizing:border-box}
-body{margin:0;font-family:system-ui,sans-serif;background:var(--bg);color:var(--text);min-height:100dvh}
-header{padding:14px 18px;border-bottom:1px solid #1e2530;display:flex;gap:12px;align-items:center;flex-wrap:wrap}
-header h1{margin:0;font-size:16px;color:var(--gold)}
-.meta{color:var(--muted);font-size:12px}
-main{padding:16px;max-width:960px;margin:0 auto}
-.row{display:flex;flex-direction:row;flex-wrap:nowrap;gap:10px;align-items:center;margin:8px 0}
-.col{display:flex;flex-direction:column;gap:10px}
-.card{background:var(--card);border-radius:12px;padding:14px}
-.btn{appearance:none;border:0;background:var(--gold);color:#111;font-weight:700;padding:10px 16px;border-radius:10px;cursor:pointer;white-space:nowrap;flex-shrink:0}
-pre{background:#0a0d12;padding:12px;border-radius:10px;overflow:auto;font-size:11px;max-height:40vh}
-</style></head><body>
+html,body{margin:0;height:100%%;background:#0b0e14;color:#eef1f6;font-family:system-ui,-apple-system,sans-serif}
+header{padding:12px 14px;border-bottom:1px solid #1e2530;display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+header h1{margin:0;font-size:15px;color:#f5c542}
+.meta{color:#8b93a7;font-size:11px}
+#mount{min-height:calc(100dvh - 52px);padding:8px;display:flex;justify-content:center}
+details{margin:12px;color:#8b93a7;font-size:12px}
+pre{background:#0a0d12;padding:10px;border-radius:10px;overflow:auto;font-size:10px;max-height:30vh}
+</style>
+<script src="app-runtime.js"></script>
+</head><body>
 <header>
   <h1>%s</h1>
   <span class="meta">RootCID <code id="cid">…</code></span>
-  <span class="meta">PWA · Alset Studio</span>
+  <span class="meta">offline-first PWA</span>
 </header>
-<main>
-  <div class="card col" id="app-root"><p class="meta">Cargando…</p></div>
-  <details class="card" style="margin-top:14px"><summary class="meta">JSON de la app</summary><pre id="out"></pre></details>
-</main>
+<div id="mount"></div>
+<details><summary>JSON de la app</summary><pre id="out"></pre></details>
 <script>
-const root=document.getElementById('app-root');
+const mount=document.getElementById('mount');
 const out=document.getElementById('out');
-function el(tag,cls,text){const e=document.createElement(tag);if(cls)e.className=cls;if(text!=null)e.textContent=text;return e;}
-function renderNode(n,parent,depth){
-  if(!n|| (depth||0)>30)return;
-  depth=(depth||0)+1;
-  const p=n.props||{};
-  const kids=(host)=>(n.children||[]).forEach(c=>renderNode(c,host,depth));
-  if(n.type==='row'){
-    const r=el('div','row');parent.appendChild(r);kids(r);return;
-  }
-  if(n.type==='column'||n.type==='card'||String(n.type).startsWith('anim-')){
-    const c=el('div',n.type==='card'?'card col':'col');parent.appendChild(c);kids(c);return;
-  }
-  if(n.type==='button'){
-    const b=el('button','btn',p.text||'OK');b.onclick=()=>alert(p.action||p.text||'click');parent.appendChild(b);return;
-  }
-  if(n.type==='text'){
-    const t=el('div','',p.text||'');
-    if(p.size)t.style.fontSize=(Number(p.size)||16)+'px';
-    if(p.weight==='bold'||p.weight==='700')t.style.fontWeight='700';
-    if(p.color==='primary')t.style.color='var(--gold)';
-    if(p.color==='muted')t.style.color='var(--muted)';
-    parent.appendChild(t);return;
-  }
-  if(n.type==='hero'){
-    const box=el('div','card col');
-    const t=el('div','',p.title||'Hero');t.style.fontSize='22px';t.style.fontWeight='800';t.style.color='var(--gold)';
-    box.appendChild(t);
-    if(p.subtitle){const s=el('div','meta',p.subtitle);box.appendChild(s);}
-    parent.appendChild(box);return;
-  }
-  if(n.type==='metric'){
-    const box=el('div','card col');
-    box.appendChild(el('div','meta',p.title||'KPI'));
-    const v=el('div','',String(p.value??'—'));v.style.fontSize='22px';v.style.fontWeight='700';v.style.color='var(--gold)';
-    box.appendChild(v);
-    if(p.hint)box.appendChild(el('div','meta',p.hint));
-    parent.appendChild(box);return;
-  }
-  if(n.type==='badge'){
-    const t=el('span','',p.text||'BADGE');t.style.cssText='display:inline-block;padding:2px 8px;border-radius:999px;background:rgba(52,211,153,0.15);color:#34d399;font-size:11px;font-weight:700';
-    parent.appendChild(t);return;
-  }
-  if(n.type==='nav'){
-    const r=el('div','row');
-    String(p.tabs||'A,B').split(',').map(s=>s.trim()).filter(Boolean).forEach(tab=>{
-      const b=el('button','btn',tab);b.onclick=()=>{};r.appendChild(b);
-    });
-    parent.appendChild(r);return;
-  }
-  if(n.type==='input'||n.type==='textarea'||n.type==='form-search'){
-    const i=document.createElement(n.type==='textarea'?'textarea':'input');
-    i.placeholder=p.placeholder||'';
-    if(n.type!=='textarea')i.type=p.type||'text';
-    i.style.cssText='width:100%%;padding:10px;border-radius:8px;border:1px solid #2a3344;background:#0a0d12;color:#fff';
-    parent.appendChild(i);return;
-  }
-  if(n.type==='image'){
-    if(p.src){const img=document.createElement('img');img.src=p.src;img.alt=p.alt||'';img.style.maxWidth='100%%';img.style.maxHeight=(p.height||120)+'px';parent.appendChild(img);}
-    else parent.appendChild(el('div','meta','(imagen)'));
-    return;
-  }
-  if(n.type==='spacer'){const d=el('div');d.style.height=(p.size||12)+'px';parent.appendChild(d);return;}
-  if(n.type==='api'||n.type==='api-post'){
-    const box=el('div','card col');
-    box.appendChild(el('div','meta',(n.type==='api'?'GET ':'POST ')+(p.url||'')+' → '+(p.state||'')));
-    if(n.type==='api'&&p.auto&&p.url){
-      fetch(p.url).then(r=>r.json()).then(j=>{
-        const pre=el('pre','',JSON.stringify(j,null,2));box.appendChild(pre);
-      }).catch(e=>box.appendChild(el('div','meta',String(e))));
-    }
-    parent.appendChild(box);return;
-  }
-  if(n.type==='list'||n.type==='table'){
-    parent.appendChild(el('div','meta',n.type+' · state '+(p.state||'—')+(p.columns?' · '+p.columns:'')));return;
-  }
-  if(n.type==='form-login'||n.type==='form-register'||n.type==='form-contact'||n.type==='login-token'){
-    const box=el('div','card col');
-    box.appendChild(el('div','',p.title||n.type)).style.fontWeight='700';
-    const fields=n.type==='form-contact'?[['email','email'],['msg','mensaje']]:[['user','usuario'],['pass','clave']];
-    fields.forEach(([name,ph])=>{
-      const i=document.createElement('input');i.placeholder=ph;if(name==='pass')i.type='password';
-      i.style.cssText='width:100%%;padding:10px;border-radius:8px;border:1px solid #2a3344;background:#0a0d12;color:#fff';
-      box.appendChild(i);
-    });
-    box.appendChild(el('button','btn',p.button||'Enviar'));
-    parent.appendChild(box);return;
-  }
-  if(n.type==='auth-gate'||n.type==='gate'){
-    const box=el('div','card col');box.appendChild(el('div','meta','gate · '+(p.role||'user')));kids(box);parent.appendChild(box);return;
-  }
-  if(n.type==='select'||n.type==='checkbox'||n.type==='switch'){
-    parent.appendChild(el('div','meta',(p.label||n.type)+' · '+(p.options||p.state||'')));return;
-  }
-  if(n.type==='state'||n.type==='persist'||n.type==='ipfs'||n.type==='agent'||n.type==='role-badge'){
-    parent.appendChild(el('div','meta',n.type+' '+(p.name||p.key||p.cid||p.text||'')));return;
-  }
-  const d=el('div','meta',n.type);parent.appendChild(d);kids(d);
-}
+const w=Math.min(window.innerWidth,430);
 fetch('app.alset.json').then(r=>r.json()).then(j=>{
   document.getElementById('cid').textContent=j.rootcid||'—';
   out.textContent=JSON.stringify(j,null,2);
-  root.innerHTML='';
-  const tree=j.tree||[];
-  if(!tree.length)root.appendChild(el('p','meta','Árbol vacío'));
-  else tree.forEach(n=>renderNode(n,root,0));
-}).catch(e=>{root.textContent=String(e)});
-if('serviceWorker' in navigator)navigator.serviceWorker.register('sw.js').catch(()=>{});
+  const device={id:'mobile',label:'App',width:w,height:window.innerHeight-60};
+  if(!window.AlsetAppRuntime){
+    mount.textContent='Falta app-runtime.js';
+    return;
+  }
+  window.AlsetAppRuntime.mount(mount,{
+    device,
+    tree:j.tree||[],
+    states:j.states||{},
+    interactive:false,
+    log:function(m){console.log('[alset]',m);}
+  });
+}).catch(e=>{mount.textContent=String(e);});
+if('serviceWorker' in navigator)navigator.serviceWorker.register('sw.js').catch(function(){});
 </script>
 </body></html>`, name, name)
 		_ = os.WriteFile(filepath.Join(appDir, "index.html"), []byte(index), 0o644)
+
 
 		writeJSON(w, map[string]any{
 			"ok": true, "path": path, "rootcid": rootcid,
