@@ -1,12 +1,5 @@
-node_modules/
-dist/
-.DS_Store
-*.log
-node_modules/
-dist/
 bin/
 node_modules/
 dist/
 src/
 public/
-index.html

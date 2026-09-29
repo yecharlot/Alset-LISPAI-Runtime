@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#0c0f14" />
+  <title>Alset LISPAI Studio</title>
+  <link rel="stylesheet" href="/css/studio.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">ALSET LISPAI <span>Studio · módulos ES · sin npm</span></div>
+    <div class="spacer"></div>
+    <span id="status" class="badge">listo</span>
+    <span id="cid" class="badge">cid: —</span>
+    <button type="button" class="btn btn-ghost" id="btn-reset">Ejemplo</button>
+    <button type="button" class="btn btn-primary" id="btn-run">Ejecutar</button>
+  </header>
+
+  <main class="layout">
+    <section class="panel">
+      <h2>Programa LispAI</h2>
+      <textarea id="editor" spellcheck="false" aria-label="Editor LispAI"></textarea>
+      <p class="hint">Formas: ui · column · row · text · button · card · theme · def · recordar · rootcid · log</p>
+    </section>
+
+    <section class="panel">
+      <h2>Vista previa (Alset-JS)</h2>
+      <div id="preview"></div>
+    </section>
+
+    <div class="bottom">
+      <section class="panel">
+        <h2>Consola</h2>
+        <pre id="console"></pre>
+      </section>
+      <section class="panel">
+        <h2>UI como datos</h2>
+        <pre id="tree"></pre>
+      </section>
+    </div>
+  </main>
+
+  <script type="module" src="/studio/main.js"></script>
+</body>
+</html>
