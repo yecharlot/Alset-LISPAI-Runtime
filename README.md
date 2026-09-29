@@ -1,53 +1,58 @@
 # Alset-LISPAI-Runtime
 
-**Motor de desarrollo web declarativo** que une:
+Motor **ordenado** para construir interfaces de próxima generación:
 
-- **Alset-JS-Runtime** — UI por pulsos, sin recomposición total del DOM  
-- **LispAI** — programación simbólica / metaprogramación de interfaces como datos  
-- **Studio** — editor, preview (AlsetInspector), consola, árbol UI, RootCID  
-- **Tokens de organismo** — gene, agent, mind-note, rootcid (abstracción ligera)  
-- **Mobile-first · offline-first** — CSS tokens + service worker  
+- **Alset-JS-Runtime** — primitivas, `alsetState`, pulsos, sin recomposición total del DOM  
+- **LispAI embebido** — la UI se describe y manipula como datos (S-expresiones)  
+- **Go** — sirve estáticos y orquesta el studio (**sin npm**)  
+- **Studio limpio** — editor · vista previa · consola · árbol  
 
-> No reemplaza PrismaTec-Core ni AlsetOS. Es el **runtime de autoría de interfaces**.
-
-## Inicio rápido
+## Arranque (solo Go)
 
 ```bash
-# Requiere Node 18+
+git clone https://github.com/yecharlot/Alset-LISPAI-Runtime.git
 cd Alset-LISPAI-Runtime
-npm install
-npm run dev
-# → http://127.0.0.1:5177
+go run ./cmd/alset-studio -addr :5177
 ```
 
-Estructura junto a Alset-JS (opcional; el core va vendored en `src/vendor/`):
+Abre **http://127.0.0.1:5177/**
 
-```text
-pulso-dev/
-  Alset-JS-Runtime/
-  Alset-LISPAI-Runtime/   ← este repo
-```
+No hace falta Node ni `npm install`.
 
-## LispAI → UI (ejemplo)
+## Flujo de trabajo
+
+1. Escribes LispAI a la izquierda.  
+2. **Ejecutar** → evalúa LispAI → árbol de datos.  
+3. Alset-JS **proyecta** el árbol en la vista previa.  
+4. Consola y panel «UI como datos» para depurar.
+
+## Ejemplo
 
 ```lisp
 (ui
-  (column (pad 16) (gap 12)
-    (text "Hola" (size 22) (weight bold) (color primary))
-    (button "OK" (on-click "ping"))))
+  (column (pad 8) (gap 12)
+    (card (pad 16)
+      (text "Hola" (size 20) (weight bold) (color primary)))
+    (button "OK" (on-click "ok"))))
 ```
 
-El evaluador produce un **árbol de datos**; el bridge lo proyecta a `Column` / `Row` / `Text` de Alset-JS.
+## Estructura
 
-## Docs
-
-- [ES — Visión](docs/VISION.es.md)  
-- [EN — Vision](docs/VISION.en.md)  
-- [LispAI forms](docs/LISPAI_FORMS.md)
+```text
+cmd/alset-studio/   → servidor Go
+web/
+  index.html        → shell ordenado
+  css/studio.css    → diseño limpio (densidad tipo producto)
+  alset/            → AlsetPulseCore (módulos ES)
+  lispai/           → parse + eval
+  studio/           → render bridge + main
+```
 
 ## Principios
 
-1. La interfaz es **dato direccionable**, no solo JSX oculto.  
-2. LispAI no autoriza acciones de negocio críticas (eso sigue en Core/Policy).  
-3. Offline por defecto; online mejora sensores y sync.  
-4. No inventar estado de mercado: este runtime es de **autoría UI**, no de inteligencia económica.
+1. **Módulos ES en el navegador** — no bundler obligatorio.  
+2. **Go genera/sirve estáticos** — eficiente, testeable, un binario.  
+3. **LispAI no es caos** — pocas formas claras orientadas a UI.  
+4. **La interfaz es dato** — auditable, versionable, transformable.  
+
+Ver `docs/VISION.es.md`.

@@ -1,5 +1,5 @@
-# Visión — Alset-LISPAI-Runtime (ES)
+# Visión (ES)
 
-Crear apps web potentes sin pelear con el DOM: describir la interfaz en LispAI (o bloques no-code futuros), ejecutar, inspeccionar y publicar.
+Facilitar interfaces **declarativas, responsivas, adaptables**, con reactividad granular Alset (`alsetState` / pulsos), usando **LispAI** para manipular el espacio de UI como datos, y **Go** como motor de entrega estática — sin npm.
 
-**Integración:** Alset-JS (render) + LispAI (simbólico) + Studio (Inspector + consola) + tokens gene/agent/mind/rootcid.
+No es un panel de experimentos sueltos: es un **studio de autoría** con layout fijo y flujo Ejecutar → Ver → Depurar.

@@ -4,3 +4,9 @@ dist/
 *.log
 node_modules/
 dist/
+bin/
+node_modules/
+dist/
+src/
+public/
+index.html

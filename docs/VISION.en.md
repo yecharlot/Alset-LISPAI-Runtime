@@ -1,5 +1,5 @@
-# Vision — Alset-LISPAI-Runtime (EN)
+# Vision (EN)
 
-Build strong web apps without fighting the DOM: describe UI in LispAI (or future no-code blocks), run, inspect, ship.
+Make **declarative, responsive, adaptive** UIs easier, with Alset granular reactivity, **LispAI** treating UI space as data, and **Go** as the static delivery engine — no npm.
 
-**Integration:** Alset-JS (render) + LispAI (symbolic) + Studio (Inspector + console) + gene/agent/mind/rootcid tokens.
+Not a pile of demos: a **studio** with fixed layout and Run → Preview → Debug flow.
