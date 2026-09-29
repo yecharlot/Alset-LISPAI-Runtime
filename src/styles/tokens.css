@@ -1,0 +1,30 @@
+/* Design tokens — mobile-first, inspired by AbacoPhy/Vite product density */
+:root {
+  --al-bg: #0b0e14;
+  --al-surface: #151b26;
+  --al-surface-2: #1b2330;
+  --al-border: rgba(232, 197, 71, 0.14);
+  --al-primary: #e8c547;
+  --al-secondary: #5b8def;
+  --al-success: #3ddc97;
+  --al-danger: #f07178;
+  --al-text: #eef1f6;
+  --al-muted: #8b93a7;
+  --al-radius: 14px;
+  --al-font: "Segoe UI", system-ui, -apple-system, sans-serif;
+  --al-mono: ui-monospace, "Cascadia Code", "SF Mono", Menlo, monospace;
+}
+* { box-sizing: border-box; }
+html, body {
+  margin: 0;
+  min-height: 100%;
+  background: var(--al-bg);
+  color: var(--al-text);
+  font-family: var(--al-font);
+  -webkit-font-smoothing: antialiased;
+}
+#app { min-height: 100dvh; }
+button, input, textarea { font: inherit; }
+@media (max-width: 768px) {
+  :root { --al-radius: 12px; }
+}
