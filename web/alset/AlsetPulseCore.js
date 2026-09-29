@@ -219,7 +219,10 @@ export const Alset = {
       const deps = nodeDeps.get(el.recomposeAction);
       if (deps) { deps.forEach(st => st.subscribers.delete(el.recomposeAction)); deps.clear(); }
 
-      const bp = (window.innerWidth <= 480) ? "sm" : (window.innerWidth <= 768) ? "md" : (window.innerWidth <= 1024) ? "lg" : "xl";
+      const vw = (typeof window.__ALSET_VIEWPORT_WIDTH__ === "number" && window.__ALSET_VIEWPORT_WIDTH__ > 0)
+        ? window.__ALSET_VIEWPORT_WIDTH__
+        : window.innerWidth;
+      const bp = (vw <= 480) ? "sm" : (vw <= 768) ? "md" : (vw <= 1024) ? "lg" : "xl";
       const next = Object.assign({}, modifier?._styles || {});
       if (modifier?._responsive?.[bp]) Object.assign(next, modifier._responsive[bp]);
 
@@ -273,7 +276,11 @@ export const List = (m, content) => Column(m.overflow("auto"), content);
 export const Column = (m, content) => Alset.createNode('div', m, content);
 export const Row = (m, content) => {
     const el = Alset.createNode('div', m, content);
-    el.style.flexDirection = 'row';
+    // CRITICAL: recompose uses __alsetDir; without this, clicks reset to column
+    el.__alsetDir = "row";
+    el.style.flexDirection = "row";
+    el.style.flexWrap = el.style.flexWrap || "nowrap";
+    el.style.alignItems = el.style.alignItems || "center";
     return el;
 };
 export const Text = (txt, m) => { const t = Alset.createNode("span", m, null); t.innerText = txt || ""; t.style.fontFamily = "'Inter', sans-serif"; return t; };
@@ -292,13 +299,18 @@ export const Image = (src, m) => {
 };
 
 export const Button = (text, onClick, m = mod()) => {
+  // Not full-width: stays horizontal inside Row unless caller forces width 100%
   return Column(
     m.background(Theme.current.primary)
       .radius(12)
       .padding("12px 24px")
       .clickable(onClick)
-      .align("center", "center"),
-    () => Text(text, mod().color("#000").weight("700"))
+      .align("center", "center")
+      .addStyle("flexShrink", "0")
+      .addStyle("width", "auto")
+      .addStyle("alignSelf", "center")
+      .addStyle("whiteSpace", "nowrap"),
+    () => Text(text, mod().color("#000").weight("700").addStyle("whiteSpace", "nowrap"))
   );
 };
 

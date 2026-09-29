@@ -242,18 +242,28 @@ export function bootBuilder() {
     refresh();
   });
 
+  function paintDeviceButtons() {
+    document.querySelectorAll('[data-device-btn]').forEach((b) => {
+      b.classList.toggle('active', b.getAttribute('data-device-btn') === deviceId);
+    });
+  }
   DEVICES.forEach((d) => {
     const b = document.createElement('button');
     b.type = 'button';
     b.className = 'btn btn-ghost';
+    b.setAttribute('data-device-btn', d.id);
     b.textContent = d.label;
     b.onclick = () => {
       deviceId = d.id;
-      paintPreviewOnly();
-      log('device ' + d.id);
+      paintDeviceButtons();
+      paintPreviewOnly(); // hot-reload layout for this viewport
+      log('preview · ' + d.label + ' (' + d.width + 'px) · hot-reload');
+      const st = $('status');
+      if (st) st.textContent = 'preview:' + d.id;
     };
     $('devices')?.appendChild(b);
   });
+  paintDeviceButtons();
 
   $('btn-clear').onclick = () => {
     tree.length = 0;
@@ -269,21 +279,41 @@ export function bootBuilder() {
   $('lisp').addEventListener('input', () => { lispDirty = true; });
   $('btn-apply-lisp').onclick = () => {
     const src = $('lisp').value;
-    const n = guard('lisp', () => applyLispSnippet(src, tree), 0);
-    if (n === 0 && src.includes('set-prop') === false) {
+    let err = null;
+    const n = guard('lisp', () => {
+      try {
+        return applyLispSnippet(src, tree);
+      } catch (e) {
+        err = e;
+        return 0;
+      }
+    }, 0);
+    if (err) {
       reportError(
-        new StudioError('LispAI editor: use (set-prop id key "valor") para parches seguros', {
-          pattern: 'lisp-safe-subset',
-          fix: 'Ejemplo: (set-prop n1 text "Hola")',
+        new StudioError(err.message || String(err), {
+          pattern: 'lisp-parse',
+          fix: 'Revisa paréntesis y formas. Ejemplo: (set-prop n1 text "Hola") o un árbol (ui (column …))',
           where: 'lisp',
         }),
         'lisp'
       );
-    } else {
-      lispDirty = false;
-      refresh();
-      log('lisp patches: ' + n);
+      return;
     }
+    if (n === 0) {
+      reportError(
+        new StudioError('LispAI: sin cambios aplicados. Usa set-prop o un árbol (ui …).', {
+          pattern: 'lisp-empty',
+          fix: '(set-prop n1 text "Hola")  ·  o pega un (ui (column (text "…") (row (button "A") (button "B"))))',
+          where: 'lisp',
+        }),
+        'lisp'
+      );
+      return;
+    }
+    lispDirty = false;
+    selectedId = tree[0]?.id || selectedId;
+    refresh();
+    log('LispAI aplicado · mutaciones: ' + n);
   };
   $('btn-sync-lisp').onclick = () => {
     lispDirty = false;
@@ -306,9 +336,10 @@ export function bootBuilder() {
       });
       const j = await r.json();
       if (!r.ok) throw new Error(j.error || 'deploy failed');
-      log('deploy PWA ' + j.url + ' rootcid=' + (j.rootcid || '—'));
+      const openUrl = j.url && j.url.startsWith('http') ? j.url : (location.origin + (j.url || '/'));
+      log('deploy PWA ' + openUrl + ' rootcid=' + (j.rootcid || '—'));
       $('status').textContent = 'deployed';
-      if (j.url) window.open(j.url, '_blank');
+      window.open(openUrl, '_blank', 'noopener');
     } catch (e) {
       reportError(e, 'deploy');
     }

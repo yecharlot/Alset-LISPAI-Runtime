@@ -28,6 +28,11 @@ export const CATALOG = [
     { type: 'hero', label: 'Hero', defaults: { title: 'Producto', subtitle: 'Declarativo · Alset' } },
     { type: 'table', label: 'Tabla', defaults: { state: 'rows', columns: 'id,name' } },
   ]},
+  { group: 'Acceso / roles', items: [
+    { type: 'login-token', label: 'Login token', defaults: { title: 'Entrar', userState: 'user', passState: 'pass', button: 'Entrar' } },
+    { type: 'auth-gate', label: 'Gate por rol', defaults: { role: 'admin', deny: 'Sin permiso' }, container: true },
+    { type: 'role-badge', label: 'Badge de rol', defaults: {} },
+  ]},
   { group: 'Datos / red', items: [
     { type: 'api', label: 'REST GET', defaults: { url: '/v1/health', state: 'apiData', auto: true } },
     { type: 'api-post', label: 'REST POST', defaults: { url: '/v1/data', state: 'postBody', event: 'submit' } },
@@ -120,7 +125,7 @@ export function uid() { return 'n' + (_id++); }
 export function createNode(type, defaults = {}) {
   const meta = CATALOG.flatMap((g) => g.items).find((i) => i.type === type);
   const d = { ...(meta?.defaults || {}), ...defaults };
-  const container = meta?.container || ['column', 'row', 'card', 'form', 'anim-fade', 'anim-slide', 'anim-scale'].includes(type);
+  const container = meta?.container || ['column', 'row', 'card', 'form', 'anim-fade', 'anim-slide', 'anim-scale', 'auth-gate', 'gate'].includes(type);
   return {
     id: uid(),
     type,
@@ -160,22 +165,176 @@ export function treeToApp(nodes, meta = {}) {
   };
 }
 
-/** Very small lisp list → shallow prop patch (safe subset) */
+/**
+ * Apply LispAI source to the visual tree.
+ * Supports:
+ *  - (set-prop id key "value") / (set-prop id key 123) / (set-prop id key true)
+ *  - (add-child parentId (button "…"))  — adds one node under parent or root
+ *  - (ui …) / (do …) / (column …) full tree replace when source is a full UI form
+ * Returns number of mutations (or nodes replaced).
+ */
 export function applyLispSnippet(src, nodes) {
-  // Only allow (set-prop id key value) forms for safety
-  const re = /\(set-prop\s+(\w+)\s+(\w+)\s+"([^"]*)"\)/g;
-  let m;
+  const text = String(src || '').trim();
+  if (!text) return 0;
   let n = 0;
-  while ((m = re.exec(src))) {
-    const [, id, key, val] = m;
+
+  // 1) set-prop patches (string | number | bool)
+  const reProp = /\(set-prop\s+(\w+)\s+(\w+)\s+("(?:\\.|[^"\\])*"|-?\d+(?:\.\d+)?|true|false)\)/g;
+  let m;
+  while ((m = reProp.exec(text))) {
+    const id = m[1];
+    const key = m[2];
+    let raw = m[3];
+    let val;
+    if (raw.startsWith('"')) {
+      try { val = JSON.parse(raw); } catch { val = raw.slice(1, -1); }
+    } else if (raw === 'true' || raw === 'false') val = raw === 'true';
+    else val = Number(raw);
     const walk = (list) => {
       for (const node of list || []) {
-        if (node.id === id) node.props[key] = val;
+        if (node.id === id) {
+          node.props[key] = val;
+          n++;
+        }
         if (node.children) walk(node.children);
       }
     };
     walk(nodes);
-    n++;
+  }
+
+  // 2) Full UI tree: (ui …) or top-level column/row
+  const isFull =
+    /^\(\s*ui\b/i.test(text) ||
+    /^\(\s*do\b/i.test(text) ||
+    /^\(\s*column\b/i.test(text) ||
+    /^\(\s*row\b/i.test(text);
+  if (isFull) {
+    try {
+      const built = lispTreeToNodes(text);
+      if (built && built.length) {
+        nodes.length = 0;
+        built.forEach((x) => nodes.push(x));
+        n += built.length;
+      }
+    } catch (e) {
+      console.warn('[LispAI] full tree', e);
+      throw e;
+    }
   }
   return n;
+}
+
+/** Convert LispAI source into studio nodes (uses lightweight local parse). */
+export function lispTreeToNodes(src) {
+  // Dynamic import avoided (no bundler): inline minimal reuse of forms via Function not needed.
+  // Parse with a tiny S-expr reader duplicated for sync use.
+  const forms = parseSexpr(src);
+  const roots = [];
+  const list = Array.isArray(forms) && forms[0] && (forms[0].s === 'do' || forms[0] === 'do')
+    ? forms.slice(1)
+    : [forms];
+
+  function sym(x) {
+    if (x && typeof x === 'object' && 's' in x) return x.s;
+    return typeof x === 'string' ? x : null;
+  }
+
+  function convert(form) {
+    if (form == null) return null;
+    if (typeof form === 'string' || typeof form === 'number' || typeof form === 'boolean') {
+      return createNode('text', { text: String(form) });
+    }
+    if (!Array.isArray(form) || !form.length) return null;
+    const op = sym(form[0]) || form[0];
+    if (op === 'ui' || op === 'do') {
+      const kids = form.slice(1).map(convert).filter(Boolean);
+      return kids.length === 1 ? kids[0] : createNode('column', { gap: 10, pad: 8, __kids: kids });
+    }
+    if (op === 'theme') return null; // theme applied separately via meta
+    if (op === 'def' || op === 'set!' || op === 'log' || op === 'mind-note' || op === 'rootcid') return null;
+
+    const props = {};
+    const children = [];
+    for (let i = 1; i < form.length; i++) {
+      const item = form[i];
+      if (Array.isArray(item) && item.length >= 1) {
+        const k = sym(item[0]) || item[0];
+        const isWidget = ['column','row','text','button','card','input','nav','list','table','api','hero','metric','spacer','badge','image','auth-gate','gate','login-token','role-badge','form-login','select','checkbox'].includes(k);
+        if (typeof k === 'string' && !isWidget) {
+          props[k] = item.length === 2 ? literal(item[1]) : item.slice(1).map(literal);
+        } else {
+          const c = convert(item);
+          if (c) children.push(c);
+        }
+      } else if (typeof item === 'string' || typeof item === 'number') {
+        if (op === 'text' || op === 'button') props.text = String(item);
+        else children.push(createNode('text', { text: String(item) }));
+      }
+    }
+    // normalize prop names
+    if (props.label && !props.text) props.text = props.label;
+    const node = createNode(String(op), props);
+    if (children.length) {
+      node.children = children;
+    }
+    if (props.__kids) {
+      node.children = props.__kids;
+      delete node.props.__kids;
+    }
+    return node;
+  }
+
+  function literal(x) {
+    if (x && typeof x === 'object' && 's' in x) return x.s;
+    return x;
+  }
+
+  for (const f of list) {
+    const n = convert(f);
+    if (!n) continue;
+    if (n.props && n.props.__kids) {
+      n.children = n.props.__kids;
+      delete n.props.__kids;
+    }
+    // unwrap single column from ui
+    if (n.type === 'column' && n.children && !Object.keys(n.props || {}).filter(k => k !== 'gap' && k !== 'pad').length) {
+      // keep as is
+    }
+    roots.push(n);
+  }
+  return roots;
+}
+
+function parseSexpr(src) {
+  const tokens = [];
+  const s = String(src || '').replace(/;[^\n]*/g, '').replace(/\(/g, ' ( ').replace(/\)/g, ' ) ');
+  const re = /"([^"\\]|\\.)*"|[^\s]+/g;
+  let m;
+  while ((m = re.exec(s))) {
+    const t = m[0];
+    if (t.startsWith('"')) tokens.push(JSON.parse(t));
+    else if (t === '(' || t === ')') tokens.push(t);
+    else if (t === 'true') tokens.push(true);
+    else if (t === 'false') tokens.push(false);
+    else if (t === 'nil' || t === 'null') tokens.push(null);
+    else if (/^-?\d+(\.\d+)?$/.test(t)) tokens.push(Number(t));
+    else tokens.push({ s: t });
+  }
+  let i = 0;
+  function read() {
+    if (i >= tokens.length) throw new Error('fin inesperado');
+    const t = tokens[i++];
+    if (t === '(') {
+      const list = [];
+      while (i < tokens.length && tokens[i] !== ')') list.push(read());
+      if (i >= tokens.length) throw new Error('falta )');
+      i++;
+      return list;
+    }
+    if (t === ')') throw new Error(') inesperado');
+    return t;
+  }
+  const forms = [];
+  while (i < tokens.length) forms.push(read());
+  return forms.length === 1 ? forms[0] : [{ s: 'do' }, ...forms];
 }

@@ -206,3 +206,23 @@ body { display: flex; flex-direction: column; min-height: 100dvh; overflow: hidd
 
 /* Alset preview helpers still used by bridge DOM bits */
 .pv-card, .preview-host [class] { }
+
+/* Device preview buttons */
+[data-device-btn].active {
+  border-color: var(--gold, #e8c547) !important;
+  color: var(--gold, #e8c547) !important;
+  background: rgba(232, 197, 71, 0.12) !important;
+}
+.device-frame {
+  border: 1px solid #2a3344;
+  border-radius: 16px;
+  margin: 0 auto;
+  background: #0a0d12;
+  transition: width 0.2s ease;
+}
+.device-label {
+  font-size: 11px;
+  color: #8b93a7;
+  padding: 6px 10px;
+  border-bottom: 1px solid #1e2530;
+}

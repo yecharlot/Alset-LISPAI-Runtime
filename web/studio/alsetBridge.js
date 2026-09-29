@@ -383,7 +383,14 @@ function renderNode(n, log, depth = 0) {
       const gap = Number(p.gap) || 8;
       const pad = Number(p.pad) || 0;
       if (n.type === 'row') {
-        Row(mod().key(key).gap(gap).padding(pad).addStyle('flexWrap', 'wrap'), kids);
+        const wrap = p.wrap === true || p.wrap === 'true' || p.wrap === 'wrap' ? 'wrap' : 'nowrap';
+        Row(
+          mod().key(key).gap(gap).padding(pad)
+            .addStyle('flexWrap', wrap)
+            .addStyle('alignItems', 'center')
+            .addStyle('flexDirection', 'row'),
+          kids
+        );
       } else if (n.type === 'card') {
         Card(mod().key(key).padding(pad || 14).gap(gap).background(Theme.current.surface), kids);
       } else if (n.type.startsWith('anim-')) {
@@ -391,6 +398,54 @@ function renderNode(n, log, depth = 0) {
       } else {
         Column(mod().key(key).gap(gap).padding(pad), kids);
       }
+      return;
+    }
+    case 'gate':
+    case 'auth-gate': {
+      const role = String(p.role || p.minRole || 'user');
+      const session = getAlsetState('session', { role: 'guest', token: null });
+      const s = session.get() || { role: 'guest' };
+      const order = ['guest', 'user', 'operator', 'admin', 'master'];
+      const ok = order.indexOf(String(s.role || 'guest')) >= order.indexOf(role);
+      if (!ok) {
+        Text(p.deny || ('Requiere rol: ' + role), mod().key(key).sizeText(13).color(colorOf('danger')));
+        return;
+      }
+      Column(mod().key(key).gap(8), () => {
+        (n.children || []).forEach((c) => renderNode(c, log, depth + 1));
+      });
+      return;
+    }
+    case 'login-token': {
+      const userSt = getAlsetState(p.userState || 'user', '');
+      const passSt = getAlsetState(p.passState || 'pass', '');
+      const session = getAlsetState('session', { role: 'guest', token: null });
+      Card(mod().key(key).padding(14).gap(8).background(Theme.current.surface), () => {
+        Text(p.title || 'Acceso', mod().sizeText(16).weight('700'));
+        Input(userSt, mod().padding(10).width('100%'), { placeholder: 'usuario' });
+        Input(passSt, mod().padding(10).width('100%'), { placeholder: 'clave', type: 'password' });
+        Button(p.button || 'Entrar', async () => {
+          try {
+            const r = await fetch('/v1/auth/login', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ username: userSt.get(), password: passSt.get() }),
+            });
+            const j = await r.json();
+            if (!r.ok) throw new Error(j.error || 'login failed');
+            session.set({ role: j.role || 'user', token: j.token, username: j.username });
+            log && log('login ok · rol ' + (j.role || 'user'));
+          } catch (e) {
+            log && log('login error: ' + (e.message || e));
+          }
+        }, mod().background(Theme.current.primary));
+      });
+      return;
+    }
+    case 'role-badge': {
+      const session = getAlsetState('session', { role: 'guest' });
+      const s = session.get() || {};
+      Text('Rol: ' + (s.role || 'guest'), mod().key(key).sizeText(12).color(colorOf('muted')));
       return;
     }
     default:
@@ -412,7 +467,13 @@ export function renderAlsetPreview(host, nodes, log, { device, theme } = {}) {
     if (device) {
       frame.style.width = device.width + 'px';
       frame.style.maxWidth = '100%';
-      frame.style.minHeight = Math.min(device.height, 480) + 'px';
+      frame.style.minHeight = Math.min(device.height, 560) + 'px';
+      frame.style.overflow = 'auto';
+      // Hot-reload responsive breakpoints for this frame (not the browser window)
+      window.__ALSET_VIEWPORT_WIDTH__ = device.width;
+      frame.dataset.device = device.id || '';
+    } else {
+      window.__ALSET_VIEWPORT_WIDTH__ = undefined;
     }
     const label = document.createElement('div');
     label.className = 'device-label';
