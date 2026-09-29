@@ -8,6 +8,10 @@ go run ./cmd/alset-studio -addr :5177 -dir web
 
 Open http://127.0.0.1:5177/
 
+## Alset-JS bridge
+
+Preview uses **native `alsetState`**, `Column`/`Row`/`Text`/`Button`/`Input`/`Card`/`Animate` via `alsetMount`. Format `alset-app/v1` unchanged.
+
 ## Safety
 
 - `window.error` / unhandledrejection trapped

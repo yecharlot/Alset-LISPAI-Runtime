@@ -752,6 +752,17 @@ export const AlsetInspector = (App) => {
    ========================= 
    Extiende el estado reactivo para sincronización multi-dispositivo.
 */
+
+/** Mount Alset tree into an arbitrary root (Studio preview). */
+export function alsetMount(rootEl, App) {
+  if (!rootEl) throw new Error('alsetMount: root required');
+  rootEl.style.backgroundColor = Theme.current.background;
+  const prev = currentContext;
+  currentContext = rootEl;
+  try { App(); }
+  finally { /* leave context at root for subsequent pulses */ }
+}
+
 export function alsetNeuralState(key, initialValue) {
   const state = alsetState(initialValue);
   

@@ -1,5 +1,5 @@
 import { CATALOG, TEMPLATES, THEME_COLORS, DEVICES, createNode, treeToLisp, treeToApp, applyLispSnippet } from './components.js';
-import { renderPreview, stateDump, stateSet, stateSubscribe } from './preview.js';
+import { renderAlsetPreview, stateDump, stateSet, stateLoad, clearAlsetStates } from './alsetBridge.js';
 import { installGlobalTraps, onError, getLastError, guard, reportError, StudioError } from './sandbox.js';
 
 const tree = [];
@@ -196,8 +196,15 @@ function renderProps() {
 
 function paintPreviewOnly() {
   const device = DEVICES.find((d) => d.id === deviceId) || DEVICES[0];
-  guard('preview', () => renderPreview($('preview'), tree, log, { device }));
-  $('appjson').textContent = JSON.stringify(treeToApp(tree, { name: $('app-name').value, states: stateDump() }), null, 2);
+  guard('preview', () =>
+    renderAlsetPreview($('preview'), tree, log, { device })
+  );
+  // dump states without remounting — alsetState already recomposes granularly
+  $('appjson').textContent = JSON.stringify(
+    treeToApp(tree, { name: $('app-name').value, states: stateDump() }),
+    null,
+    2
+  );
 }
 
 function refresh() {
@@ -251,6 +258,7 @@ export function bootBuilder() {
     tree.length = 0;
     selectedId = null;
     showError(null);
+    clearAlsetStates();
     refresh();
   };
   $('btn-clear-preview').onclick = () => {
@@ -305,11 +313,7 @@ export function bootBuilder() {
     }
   };
 
-  stateSubscribe((name) => {
-    // granular: metrics/lists that bind this state — full preview budget-limited
-    paintPreviewOnly();
-    log('state ' + name);
-  });
+  // alsetState nativo recompondrá solo nodos dependientes; no remontamos el árbol aquí
 
   // default template
   TEMPLATES.find((t) => t.id === 'dashboard')?.build().forEach((n) => tree.push(n));
