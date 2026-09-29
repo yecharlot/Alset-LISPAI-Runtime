@@ -10,8 +10,8 @@ Open http://127.0.0.1:5177/
 
 ## Docs
 
-- **[Manual (ES)](docs/MANUAL.es.md)** — de 0 a 100
-- **[Manual (EN)](docs/MANUAL.en.md)**
+- **[Manual (ES)](docs/MANUAL.es.md)** — crear, probar y desplegar (emulador, shell móvil, PWA)
+- **[Manual (EN)](docs/MANUAL.en.md)** — create, test, deploy
 - [LispAI forms](docs/LISPAI_FORMS.md)
 - [Vision ES](docs/VISION.es.md) · [EN](docs/VISION.en.md)
 
