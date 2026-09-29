@@ -110,6 +110,21 @@ Sigue este orden la primera vez:
 
 **Recomendado para móvil:** ejemplo **«App móvil first»** o plantilla **«App móvil (shell)»**.
 
+### Catálogo de ejemplos (orientativo)
+
+El drawer **Ejemplos** incluye plantillas modernas de propósito general, entre otras:
+
+| Área | Ejemplos |
+|------|----------|
+| Marketing | Landing, Landing SaaS, Landing producto, Onboarding |
+| Comercio | Tienda online, Checkout, Casa de cambio, Inventario, Menú restaurante |
+| Finanzas | Billetera, App bancaria lite, Remesas, Facturación, Cotizaciones, Escrow |
+| Operación | Pedidos online, Reservas, Mesa de ayuda, Eventos, Cita médica lite |
+| Contenido | Blog, Curriculum vitae, Portfolio |
+| Core | SaaS dashboard, Auth, CRM, Motion, App móvil first |
+
+Usa **Cargar** → edita → **Correr preview** → **Desplegar**.
+
 ### 3.2 Qué hace «Correr preview»
 
 - **No** publica la app.
