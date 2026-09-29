@@ -3,51 +3,62 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-  <title>Alset LISPAI Studio — No-Code</title>
+  <title>Alset Studio No-Code</title>
   <link rel="stylesheet" href="/css/studio.css" />
 </head>
 <body>
   <header class="top">
-    <div class="brand">ALSET STUDIO <small>no-code · alsetState · REST · deploy</small></div>
-    <input id="app-name" value="mi-app" style="width:120px;background:#0a0d12;border:1px solid var(--line);border-radius:8px;color:var(--text);padding:6px 8px" />
+    <div class="brand">ALSET STUDIO <small>sandbox · no-code · PWA · RootCID</small></div>
+    <input id="app-name" value="mi-app" class="name-input" />
     <span id="status" class="badge">listo</span>
     <div class="spacer"></div>
-    <button type="button" class="btn btn-ghost" id="btn-clear">Limpiar</button>
-    <button type="button" class="btn btn-blue" id="btn-sample">Ejemplo</button>
+    <button type="button" class="btn btn-ghost" id="btn-clear-preview">Limpiar preview</button>
+    <button type="button" class="btn btn-ghost" id="btn-clear">Limpiar canvas</button>
     <button type="button" class="btn btn-blue" id="btn-export">Export .alset</button>
-    <button type="button" class="btn btn-gold" id="btn-deploy">Desplegar</button>
+    <button type="button" class="btn btn-gold" id="btn-deploy">Desplegar PWA</button>
   </header>
+
+  <div id="error-box" class="error-box hidden" role="alert"></div>
 
   <div class="main">
     <aside class="col">
+      <h3>Plantillas</h3>
+      <div id="templates" class="templates"></div>
       <h3>Toolbox</h3>
       <div id="toolbox" class="toolbox"></div>
+      <h3>Colores tema</h3>
+      <div id="colors" class="colors"></div>
     </aside>
 
     <section class="col canvas-wrap">
-      <h3>Canvas · arrastrar y soltar</h3>
+      <h3>Canvas</h3>
       <div id="canvas"></div>
-      <h3>Vista previa viva</h3>
-      <div id="preview" style="padding:12px;border-top:1px solid var(--line);max-height:240px;overflow:auto"></div>
+      <div class="preview-bar">
+        <h3>Preview vivo</h3>
+        <div id="devices" class="devices"></div>
+      </div>
+      <div id="preview" class="preview-area"></div>
     </section>
 
     <aside class="col">
-      <h3>Propiedades · estado</h3>
+      <h3>Propiedades</h3>
       <div id="props" class="props"></div>
+      <h3>LispAI (set-prop seguro)</h3>
+      <textarea id="lisp" class="lisp" spellcheck="false"></textarea>
+      <div class="row-btns">
+        <button type="button" class="btn btn-blue" id="btn-apply-lisp">Aplicar Lisp</button>
+        <button type="button" class="btn btn-ghost" id="btn-sync-lisp">Sync desde árbol</button>
+      </div>
     </aside>
   </div>
 
   <div class="bottom">
     <section>
-      <h3 style="margin:0;padding:8px 10px;font-size:11px;color:var(--muted);border-bottom:1px solid var(--line)">LispAI</h3>
-      <pre id="lisp"></pre>
-    </section>
-    <section>
-      <h3 style="margin:0;padding:8px 10px;font-size:11px;color:var(--muted);border-bottom:1px solid var(--line)">App .alset.json</h3>
+      <h3>App JSON</h3>
       <pre id="appjson"></pre>
     </section>
     <section>
-      <h3 style="margin:0;padding:8px 10px;font-size:11px;color:var(--muted);border-bottom:1px solid var(--line)">Consola</h3>
+      <h3>Consola</h3>
       <pre id="console"></pre>
     </section>
   </div>

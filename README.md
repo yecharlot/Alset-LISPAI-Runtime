@@ -1,25 +1,20 @@
-# Alset-LISPAI-Runtime
+# Alset Studio (LISPAI Runtime)
 
-**Studio no-code** para interfaces de próxima generación sobre el modelo Alset:
-
-- Toolbox (básicos + compuestos + REST/IPFS/estado)
-- Canvas drag-and-drop
-- Propiedades y **alsetState** por componente
-- Preview vivo
-- Export **`.alset.json`** y **Desplegar** local (`/v1/deploy`)
-- LispAI generado desde el árbol
-- Servidor **Go** (sin npm)
-
-## Arranque
+No-code studio with **error sandbox** (does not freeze the host PC), drag-drop toolbox, multi-device preview, forms, REST backend, PWA deploy, RootCID, LispAI safe patches.
 
 ```bash
-cd Alset-LISPAI-Runtime
 go run ./cmd/alset-studio -addr :5177 -dir web
 ```
 
-http://127.0.0.1:5177/
+Open http://127.0.0.1:5177/
 
-## Formato de app
+## Safety
 
-`format: alset-app/v1` — árbol de nodos + estados + metadatos.  
-Es el paquete nativo del ecosistema Alset (no el `.tcz` de Tiny Core).
+- `window.error` / unhandledrejection trapped
+- Render budget (~80ms) reports slow trees
+- Lisp editor only applies `(set-prop id key "value")` by default
+- Inputs update state without rebuilding the whole canvas on each keystroke
+
+## Deploy
+
+**Desplegar PWA** → `/apps/<name>/` with manifest + service worker + `rootcid`.

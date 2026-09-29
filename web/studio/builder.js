@@ -1,26 +1,48 @@
-import { CATALOG, createNode, treeToLisp, treeToApp } from './components.js';
+import { CATALOG, TEMPLATES, THEME_COLORS, DEVICES, createNode, treeToLisp, treeToApp, applyLispSnippet } from './components.js';
 import { renderPreview, stateDump, stateSet, stateSubscribe } from './preview.js';
+import { installGlobalTraps, onError, getLastError, guard, reportError, StudioError } from './sandbox.js';
 
 const tree = [];
 let selectedId = null;
+let deviceId = 'mobile';
+let lispDirty = false;
 
 const $ = (id) => document.getElementById(id);
 
-function findNode(list, id, parent = null) {
+function log(msg) {
+  const pre = $('console');
+  if (!pre) return;
+  pre.textContent += msg + '\n';
+  pre.scrollTop = pre.scrollHeight;
+}
+
+function findNode(list, id) {
   for (let i = 0; i < list.length; i++) {
-    if (list[i].id === id) return { node: list[i], list, index: i, parent };
+    if (list[i].id === id) return { node: list[i], list, index: i };
     if (list[i].children) {
-      const r = findNode(list[i].children, id, list[i]);
+      const r = findNode(list[i].children, id);
       if (r) return r;
     }
   }
   return null;
 }
 
-function log(msg) {
-  const pre = $('console');
-  pre.textContent += msg + '\n';
-  pre.scrollTop = pre.scrollHeight;
+function showError(e) {
+  const box = $('error-box');
+  if (!box) return;
+  if (!e) {
+    box.classList.add('hidden');
+    box.innerHTML = '';
+    return;
+  }
+  box.classList.remove('hidden');
+  box.innerHTML = `<strong>Error aislado</strong>
+    <div>${e.message || e.error || e}</div>
+    <div class="err-meta"><b>Patrón:</b> ${e.pattern || '—'}</div>
+    <div class="err-meta"><b>Dónde:</b> ${e.where || '—'}</div>
+    <div class="err-meta"><b>Corrección:</b> ${e.fix || '—'}</div>
+    <button type="button" class="btn btn-ghost" id="btn-dismiss-err">Cerrar</button>`;
+  $('btn-dismiss-err')?.addEventListener('click', () => showError(null));
 }
 
 function renderToolbox() {
@@ -38,11 +60,10 @@ function renderToolbox() {
       t.innerHTML = `<strong>${item.label}</strong><span>${item.type}</span>`;
       t.addEventListener('dragstart', (e) => {
         e.dataTransfer.setData('application/x-alset-type', item.type);
-        e.dataTransfer.effectAllowed = 'copy';
       });
       t.addEventListener('click', () => {
         tree.push(createNode(item.type));
-        selectedId = tree[tree.length - 1].id;
+        selectedId = tree.at(-1).id;
         refresh();
       });
       box.appendChild(t);
@@ -50,17 +71,53 @@ function renderToolbox() {
   }
 }
 
+function renderTemplates() {
+  const box = $('templates');
+  if (!box) return;
+  box.innerHTML = '';
+  TEMPLATES.forEach((t) => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'btn btn-ghost tpl';
+    b.textContent = t.name;
+    b.onclick = () => {
+      tree.length = 0;
+      guard('template', () => {
+        const nodes = t.build();
+        nodes.forEach((n) => tree.push(n));
+        selectedId = tree[0]?.id || null;
+        refresh();
+        log('plantilla ' + t.id);
+      });
+    };
+    box.appendChild(b);
+  });
+}
+
+function renderColors() {
+  const box = $('colors');
+  if (!box) return;
+  box.innerHTML = '';
+  Object.entries(THEME_COLORS).forEach(([k, v]) => {
+    const s = document.createElement('button');
+    s.type = 'button';
+    s.className = 'swatch';
+    s.title = k + ' ' + v;
+    s.style.background = v;
+    s.onclick = () => {
+      navigator.clipboard?.writeText(v);
+      log('color ' + k + ' ' + v);
+    };
+    box.appendChild(s);
+  });
+}
+
 function nodeEl(n) {
   const d = document.createElement('div');
   d.className = 'node' + (n.id === selectedId ? ' selected' : '');
-  d.dataset.id = n.id;
-  d.innerHTML = `<div class="kind">${n.type}</div><div class="label">${n.props?.text || n.props?.title || n.props?.name || n.props?.url || n.type}</div>`;
-  if (n.props?.state) {
-    const m = document.createElement('div');
-    m.className = 'meta';
-    m.textContent = 'state → ' + n.props.state;
-    d.appendChild(m);
-  }
+  d.innerHTML = `<div class="kind">${n.type}</div>
+    <div class="label">${n.props?.text || n.props?.title || n.props?.name || n.props?.url || n.type}</div>
+    <div class="meta">${n.id}${n.props?.state ? ' · state:' + n.props.state : ''}</div>`;
   d.onclick = (e) => {
     e.stopPropagation();
     selectedId = n.id;
@@ -69,7 +126,6 @@ function nodeEl(n) {
   if (Array.isArray(n.children)) {
     const ch = document.createElement('div');
     ch.className = 'node-children';
-    ch.dataset.parent = n.id;
     ch.addEventListener('dragover', (e) => { e.preventDefault(); ch.classList.add('drag-over'); });
     ch.addEventListener('dragleave', () => ch.classList.remove('drag-over'));
     ch.addEventListener('drop', (e) => {
@@ -79,7 +135,7 @@ function nodeEl(n) {
       const type = e.dataTransfer.getData('application/x-alset-type');
       if (!type) return;
       n.children.push(createNode(type));
-      selectedId = n.children[n.children.length - 1].id;
+      selectedId = n.children.at(-1).id;
       refresh();
     });
     n.children.forEach((c) => ch.appendChild(nodeEl(c)));
@@ -93,7 +149,7 @@ function renderCanvas() {
   canvas.innerHTML = '';
   const hint = document.createElement('div');
   hint.className = 'drop-hint';
-  hint.textContent = tree.length ? 'Arrastra componentes al canvas o dentro de Column/Row/Card' : 'Arrastra aquí desde la toolbox o haz clic en un componente';
+  hint.textContent = 'Arrastra componentes · clic selecciona · inputs no re-renderizan el árbol al escribir';
   canvas.appendChild(hint);
   tree.forEach((n) => canvas.appendChild(nodeEl(n)));
 }
@@ -103,43 +159,33 @@ function renderProps() {
   props.innerHTML = '';
   const hit = selectedId ? findNode(tree, selectedId) : null;
   if (!hit) {
-    props.innerHTML = '<p style="color:#8b93a7;font-size:13px">Selecciona un nodo del canvas</p>';
+    props.innerHTML = '<p class="hint-text">Selecciona un nodo</p>';
     return;
   }
   const n = hit.node;
   const title = document.createElement('div');
-  title.innerHTML = `<strong>${n.type}</strong> <span style="color:#8b93a7">${n.id}</span>`;
+  title.innerHTML = `<strong>${n.type}</strong> <code>${n.id}</code>`;
   props.appendChild(title);
-
-  function field(key, label, kind = 'text') {
+  Object.keys(n.props || {}).forEach((k) => {
     const wrap = document.createElement('div');
     wrap.className = 'field';
-    const lab = document.createElement('label');
-    lab.textContent = label;
-    let input;
-    if (kind === 'textarea') {
-      input = document.createElement('textarea');
-      input.value = n.props[key] ?? '';
-    } else {
-      input = document.createElement('input');
-      input.value = n.props[key] ?? '';
-    }
-    input.oninput = () => {
-      n.props[key] = input.value;
-      refresh(false);
-    };
-    wrap.appendChild(lab);
+    wrap.innerHTML = `<label>${k}</label>`;
+    const input = document.createElement('input');
+    input.value = n.props[k] ?? '';
+    // fluid typing: update prop without full canvas rebuild until blur optional
+    input.addEventListener('input', () => {
+      n.props[k] = input.value;
+      if (!lispDirty) $('lisp').value = treeToLisp(tree);
+      // granular: only preview refresh
+      paintPreviewOnly();
+    });
     wrap.appendChild(input);
     props.appendChild(wrap);
-  }
-
-  const keys = Object.keys(n.props || {});
-  if (!keys.length) n.props.text = '';
-  Object.keys(n.props).forEach((k) => field(k, k, k === 'url' || k === 'tabs' ? 'text' : 'text'));
-
+  });
   const del = document.createElement('button');
+  del.type = 'button';
   del.className = 'btn btn-ghost';
-  del.textContent = 'Eliminar nodo';
+  del.textContent = 'Eliminar';
   del.onclick = () => {
     hit.list.splice(hit.index, 1);
     selectedId = null;
@@ -148,58 +194,101 @@ function renderProps() {
   props.appendChild(del);
 }
 
-function refresh(full = true) {
-  if (full) renderCanvas();
-  renderProps();
-  $('lisp').textContent = treeToLisp(tree);
-  $('appjson').textContent = JSON.stringify(treeToApp(tree, { states: stateDump() }), null, 2);
-  renderPreview($('preview'), tree, log);
-  $('status').textContent = tree.length + ' nodos';
-  $('status').className = 'badge ok';
+function paintPreviewOnly() {
+  const device = DEVICES.find((d) => d.id === deviceId) || DEVICES[0];
+  guard('preview', () => renderPreview($('preview'), tree, log, { device }));
+  $('appjson').textContent = JSON.stringify(treeToApp(tree, { name: $('app-name').value, states: stateDump() }), null, 2);
 }
 
-function setupCanvasDrop() {
+function refresh() {
+  guard('refresh', () => {
+    renderCanvas();
+    renderProps();
+    if (!lispDirty) $('lisp').value = treeToLisp(tree);
+    paintPreviewOnly();
+    $('status').textContent = tree.length + ' nodos';
+    $('status').className = 'badge ok';
+  });
+}
+
+export function bootBuilder() {
+  installGlobalTraps(log);
+  onError((e) => {
+    showError(e);
+    $('status').textContent = 'error aislado';
+    $('status').className = 'badge err';
+  });
+
+  renderToolbox();
+  renderTemplates();
+  renderColors();
+
   const canvas = $('canvas');
   canvas.addEventListener('dragover', (e) => e.preventDefault());
   canvas.addEventListener('drop', (e) => {
     e.preventDefault();
     const type = e.dataTransfer.getData('application/x-alset-type');
-    if (!type) return;
-    // if dropped on empty canvas root
-    if (!e.target.closest('.node-children')) {
-      tree.push(createNode(type));
-      selectedId = tree[tree.length - 1].id;
-      refresh();
-    }
+    if (!type || e.target.closest('.node-children')) return;
+    tree.push(createNode(type));
+    selectedId = tree.at(-1).id;
+    refresh();
   });
-}
 
-export function bootBuilder() {
-  renderToolbox();
-  setupCanvasDrop();
-  stateSubscribe(() => renderPreview($('preview'), tree, log));
+  DEVICES.forEach((d) => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'btn btn-ghost';
+    b.textContent = d.label;
+    b.onclick = () => {
+      deviceId = d.id;
+      paintPreviewOnly();
+      log('device ' + d.id);
+    };
+    $('devices')?.appendChild(b);
+  });
 
   $('btn-clear').onclick = () => {
     tree.length = 0;
     selectedId = null;
+    showError(null);
     refresh();
-    log('canvas limpio');
   };
-  $('btn-sample').onclick = () => {
-    tree.length = 0;
-    const col = createNode('column', { gap: 10, pad: 8 });
-    col.children.push(createNode('text', { text: 'Mi app no-code', size: 22, weight: 'bold', color: 'primary' }));
-    col.children.push(createNode('metric', { title: 'Contador', value: '0', state: 'count', hint: 'alsetState' }));
-    col.children.push(createNode('button', { text: 'Sumar', action: 'inc', state: 'count' }));
-    col.children.push(createNode('api', { url: '/v1/health', state: 'apiData', auto: true }));
-    tree.push(col);
-    selectedId = col.id;
-    stateSet('count', 0);
-    refresh();
-    log('ejemplo cargado');
+  $('btn-clear-preview').onclick = () => {
+    $('preview').innerHTML = '';
+    log('preview limpiado');
+  };
+  $('lisp').addEventListener('input', () => { lispDirty = true; });
+  $('btn-apply-lisp').onclick = () => {
+    const src = $('lisp').value;
+    const n = guard('lisp', () => applyLispSnippet(src, tree), 0);
+    if (n === 0 && src.includes('set-prop') === false) {
+      reportError(
+        new StudioError('LispAI editor: use (set-prop id key "valor") para parches seguros', {
+          pattern: 'lisp-safe-subset',
+          fix: 'Ejemplo: (set-prop n1 text "Hola")',
+          where: 'lisp',
+        }),
+        'lisp'
+      );
+    } else {
+      lispDirty = false;
+      refresh();
+      log('lisp patches: ' + n);
+    }
+  };
+  $('btn-sync-lisp').onclick = () => {
+    lispDirty = false;
+    $('lisp').value = treeToLisp(tree);
+  };
+  $('btn-export').onclick = () => {
+    const app = treeToApp(tree, { name: $('app-name').value || 'app', states: stateDump() });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([JSON.stringify(app, null, 2)], { type: 'application/json' }));
+    a.download = (app.name || 'app') + '.alset.json';
+    a.click();
   };
   $('btn-deploy').onclick = async () => {
-    const app = treeToApp(tree, { name: $('app-name').value || 'app', states: stateDump() });
+    const app = treeToApp(tree, { name: $('app-name').value || 'app', states: stateDump(), agent: 'studio' });
     try {
       const r = await fetch('/v1/deploy', {
         method: 'POST',
@@ -207,24 +296,24 @@ export function bootBuilder() {
         body: JSON.stringify(app),
       });
       const j = await r.json();
-      if (!r.ok) throw new Error(j.error || r.statusText);
-      log('deploy OK → ' + j.path + ' · ' + (j.url || ''));
+      if (!r.ok) throw new Error(j.error || 'deploy failed');
+      log('deploy PWA ' + j.url + ' rootcid=' + (j.rootcid || '—'));
       $('status').textContent = 'deployed';
-      $('status').className = 'badge ok';
+      if (j.url) window.open(j.url, '_blank');
     } catch (e) {
-      log('deploy ERR ' + e.message);
-      $('status').textContent = 'error';
-      $('status').className = 'badge err';
+      reportError(e, 'deploy');
     }
   };
-  $('btn-export').onclick = () => {
-    const blob = new Blob([JSON.stringify(treeToApp(tree, { name: $('app-name').value || 'app', states: stateDump() }), null, 2)], { type: 'application/json' });
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = ($('app-name').value || 'app') + '.alset.json';
-    a.click();
-    log('export .alset.json');
-  };
 
-  $('btn-sample').click();
+  stateSubscribe((name) => {
+    // granular: metrics/lists that bind this state — full preview budget-limited
+    paintPreviewOnly();
+    log('state ' + name);
+  });
+
+  // default template
+  TEMPLATES.find((t) => t.id === 'dashboard')?.build().forEach((n) => tree.push(n));
+  selectedId = tree[0]?.id || null;
+  refresh();
+  log('studio listo · errores aislados · preview multi-dispositivo');
 }
