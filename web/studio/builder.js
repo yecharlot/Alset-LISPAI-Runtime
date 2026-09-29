@@ -276,6 +276,26 @@ export function bootBuilder() {
     $('preview').innerHTML = '';
     log('preview limpiado');
   };
+  $('btn-run-preview')?.addEventListener('click', () => {
+    paintPreviewOnly();
+    log('Correr preview: re-montó ' + tree.length + ' nodos raíz en el panel Preview');
+    $('status').textContent = 'preview ok';
+    $('status').className = 'badge ok';
+  });
+  const pingBackend = async () => {
+    try {
+      const r = await fetch('/v1/health');
+      const j = await r.json();
+      log('backend /v1/health → ' + JSON.stringify(j));
+      $('status').textContent = 'backend ok';
+      $('status').className = 'badge ok';
+    } catch (e) {
+      log('backend error: ' + e.message);
+      $('status').textContent = 'backend err';
+      $('status').className = 'badge err';
+    }
+  };
+  document.querySelectorAll('#btn-backend-ping').forEach((b) => b.addEventListener('click', pingBackend));
   $('lisp').addEventListener('input', () => { lispDirty = true; });
   $('btn-apply-lisp').onclick = () => {
     const src = $('lisp').value;
@@ -376,11 +396,23 @@ export function bootBuilder() {
       const runBtn = document.createElement('button');
       runBtn.type = 'button';
       runBtn.className = 'btn btn-blue';
-      runBtn.textContent = 'Correr';
+      runBtn.title = 'Carga el ejemplo y fuerza el preview (Alset-JS + DOM fallback)';
+      runBtn.textContent = 'Correr preview';
       runBtn.onclick = () => {
-        loadBtn.onclick();
-        paintPreviewOnly();
-        log('ejemplo en preview: ' + ex.id);
+        // Load tree, then hard-refresh preview so API/auto components fire again
+        tree.length = 0;
+        guard('example-run', () => {
+          ex.build().forEach((n) => tree.push(n));
+          selectedId = tree[0]?.id || null;
+          $('app-name').value = ex.id;
+          lispDirty = false;
+          renderCanvas();
+          renderProps();
+          if (!lispDirty) $('lisp').value = treeToLisp(tree);
+          paintPreviewOnly();
+          log('Correr preview = cargar árbol + montar preview · ejemplo: ' + ex.id);
+          log('Flujo: Cargar → editar canvas/props/LispAI → Correr preview → Desplegar PWA');
+        });
       };
       const depBtn = document.createElement('button');
       depBtn.type = 'button';
@@ -402,5 +434,8 @@ export function bootBuilder() {
   TEMPLATES.find((t) => t.id === 'dashboard')?.build().forEach((n) => tree.push(n));
   selectedId = tree[0]?.id || null;
   refresh();
-  log('studio listo · paneles VS Code · ejemplos · Alset-JS');
+  log('studio listo · pantalla completa');
+  log('Correr preview = monta el árbol en el panel Preview (no despliega).');
+  log('Desplegar PWA = escribe /apps/<nombre>/ y abre la app final.');
+  log('LispAI (panel derecho) = lógica declarativa; Backend = /v1/health /v1/data /v1/auth/login');
 }

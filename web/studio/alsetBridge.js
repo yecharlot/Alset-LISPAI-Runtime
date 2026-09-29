@@ -13,10 +13,12 @@ import {
   Input,
   Spacer,
   Animate,
+  Image,
   mod,
   Theme,
 } from '../alset/AlsetPulseCore.js';
 import { THEME_COLORS } from './components.js';
+import { paintTree } from './domPaint.js';
 import { guard, withBudget, reportError, StudioError } from './sandbox.js';
 
 /** Shared native alsetState registry — granular subscribers inside Alset core */
@@ -368,7 +370,11 @@ function renderNode(n, log, depth = 0) {
       return;
     }
     case 'image': {
-      Text(p.src ? `[img ${p.alt || ''}]` : '(imagen)', mod().key(key).sizeText(12).color(colorOf('muted')));
+      if (p.src) {
+        Image(p.src, mod().key(key).height(Number(p.height) || 120).width('100%').radius(8));
+      } else {
+        Text('(imagen sin src)', mod().key(key).sizeText(12).color(colorOf('muted')));
+      }
       return;
     }
     case 'column':
@@ -460,7 +466,13 @@ function renderNode(n, log, depth = 0) {
 export function renderAlsetPreview(host, nodes, log, { device, theme } = {}) {
   return withBudget('alset-preview', () => {
     if (!host) return;
-    // clear previous DOM + allow API flags to re-fire on full remount
+    // Reset one-shot API flags so auto components re-fetch on each full paint
+    Object.keys(window).forEach((k) => {
+      if (k.startsWith('__alset_api_') || k.startsWith('__alset_persisted_')) {
+        try { delete window[k]; } catch (_) { window[k] = false; }
+      }
+    });
+
     host.innerHTML = '';
     const frame = document.createElement('div');
     frame.className = 'device-frame';
@@ -469,7 +481,6 @@ export function renderAlsetPreview(host, nodes, log, { device, theme } = {}) {
       frame.style.maxWidth = '100%';
       frame.style.minHeight = Math.min(device.height, 560) + 'px';
       frame.style.overflow = 'auto';
-      // Hot-reload responsive breakpoints for this frame (not the browser window)
       window.__ALSET_VIEWPORT_WIDTH__ = device.width;
       frame.dataset.device = device.id || '';
     } else {
@@ -478,23 +489,57 @@ export function renderAlsetPreview(host, nodes, log, { device, theme } = {}) {
     const label = document.createElement('div');
     label.className = 'device-label';
     label.textContent = device
-      ? `${device.label} · ${device.width}px · Alset-JS alsetState`
+      ? `${device.label} · ${device.width}px · Alset-JS`
       : 'Alset-JS preview';
     const root = document.createElement('div');
+    root.id = 'alset-preview-root';
     root.className = 'preview-host';
     root.style.minHeight = '80px';
+    root.style.color = '#f4f4f5';
     frame.appendChild(label);
     frame.appendChild(root);
     host.appendChild(frame);
 
     applyThemeTokens(theme || THEME_COLORS);
 
-    guard('alset-mount', () => {
-      alsetMount(root, () => {
-        Column(mod().key('studio-preview-root').gap(10).padding(4), () => {
-          (nodes || []).forEach((n) => renderNode(n, log, 0));
+    let mounted = false;
+    try {
+      guard('alset-mount', () => {
+        // Clear any leftover children
+        while (root.firstChild) root.removeChild(root.firstChild);
+        alsetMount(root, () => {
+          Column(mod().key('studio-preview-root').gap(10).padding(4).width('100%'), () => {
+            const list = nodes || [];
+            if (!list.length) {
+              Text('Canvas vacío — arrastra componentes o carga un ejemplo', mod().sizeText(13).color(colorOf('muted')));
+              return;
+            }
+            list.forEach((n) => renderNode(n, log, 0));
+          });
         });
       });
+      mounted = root.childNodes.length > 0;
+    } catch (e) {
+      reportError(e, 'alset-preview');
+      mounted = false;
+    }
+
+    // Reliable fallback: full DOM painter (same component catalog)
+    if (!mounted) {
+      while (root.firstChild) root.removeChild(root.firstChild);
+      label.textContent = (device ? `${device.label} · ${device.width}px · ` : '') + 'DOM preview';
+      paintTree(root, nodes || [], log, 0);
+      log && log('preview · modo DOM (fallback)');
+    }
+
+    // After microtask, if still empty, force DOM paint
+    queueMicrotask(() => {
+      if (!root.isConnected) return;
+      if (!root.childNodes.length && (nodes || []).length) {
+        paintTree(root, nodes, log, 0);
+        label.textContent = (device ? `${device.label} · ${device.width}px · ` : '') + 'DOM preview';
+        log && log('preview · relleno DOM post-mount');
+      }
     });
   });
 }
