@@ -1,4 +1,5 @@
 import { CATALOG, TEMPLATES, THEME_COLORS, DEVICES, createNode, treeToLisp, treeToApp, applyLispSnippet } from './components.js';
+import { EXAMPLES } from './examples.js';
 import { renderAlsetPreview, stateDump, stateSet, stateLoad, clearAlsetStates } from './alsetBridge.js';
 import { installGlobalTraps, onError, getLastError, guard, reportError, StudioError } from './sandbox.js';
 
@@ -315,9 +316,60 @@ export function bootBuilder() {
 
   // alsetState nativo recompondrá solo nodos dependientes; no remontamos el árbol aquí
 
+  // Examples drawer
+  const drawer = $('examples-drawer');
+  const list = $('examples-list');
+  if (list) {
+    list.innerHTML = '';
+    EXAMPLES.forEach((ex) => {
+      const card = document.createElement('div');
+      card.className = 'example-card';
+      card.innerHTML = `<h4>${ex.name}</h4><p>${ex.blurb}</p>
+        <div class="example-tags">${(ex.tags || []).map((t) => `<span>${t}</span>`).join('')}</div>`;
+      const actions = document.createElement('div');
+      actions.className = 'example-actions';
+      const loadBtn = document.createElement('button');
+      loadBtn.type = 'button';
+      loadBtn.className = 'btn btn-ghost';
+      loadBtn.textContent = 'Cargar';
+      loadBtn.onclick = () => {
+        tree.length = 0;
+        guard('example', () => {
+          ex.build().forEach((n) => tree.push(n));
+          selectedId = tree[0]?.id || null;
+          $('app-name').value = ex.id;
+          refresh();
+          log('ejemplo cargado: ' + ex.id);
+        });
+      };
+      const runBtn = document.createElement('button');
+      runBtn.type = 'button';
+      runBtn.className = 'btn btn-blue';
+      runBtn.textContent = 'Correr';
+      runBtn.onclick = () => {
+        loadBtn.onclick();
+        paintPreviewOnly();
+        log('ejemplo en preview: ' + ex.id);
+      };
+      const depBtn = document.createElement('button');
+      depBtn.type = 'button';
+      depBtn.className = 'btn btn-gold';
+      depBtn.textContent = 'Desplegar';
+      depBtn.onclick = async () => {
+        loadBtn.onclick();
+        $('btn-deploy')?.click();
+      };
+      actions.append(loadBtn, runBtn, depBtn);
+      card.appendChild(actions);
+      list.appendChild(card);
+    });
+  }
+  $('btn-examples')?.addEventListener('click', () => drawer?.classList.toggle('hidden'));
+  $('btn-close-examples')?.addEventListener('click', () => drawer?.classList.add('hidden'));
+
   // default template
   TEMPLATES.find((t) => t.id === 'dashboard')?.build().forEach((n) => tree.push(n));
   selectedId = tree[0]?.id || null;
   refresh();
-  log('studio listo · errores aislados · preview multi-dispositivo');
+  log('studio listo · paneles VS Code · ejemplos · Alset-JS');
 }

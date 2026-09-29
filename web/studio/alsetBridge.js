@@ -64,11 +64,11 @@ function colorOf(c) {
 
 function applyThemeTokens(theme = {}) {
   Theme.set({
-    primary: theme.primary || THEME_COLORS.primary,
-    secondary: theme.secondary || THEME_COLORS.secondary,
-    background: theme.background || THEME_COLORS.background,
-    surface: theme.surface || THEME_COLORS.surface,
-    radius: 12,
+    primary: theme.primary || THEME_COLORS.primary || '#f5c542',
+    secondary: theme.secondary || THEME_COLORS.secondary || '#5b9cf5',
+    background: theme.background || THEME_COLORS.background || '#09090b',
+    surface: theme.surface || THEME_COLORS.surface || '#161922',
+    radius: 14,
   });
 }
 
@@ -163,7 +163,7 @@ function renderNode(n, log, depth = 0) {
         Button(
           p.text || 'OK',
           handler,
-          mod().key(key).padding(12).radius(10).background(Theme.current.primary)
+          mod().key(key).padding('12px 18px').radius(12).background(Theme.current.primary)
         );
       if (p.anim) animWrap(p.anim, p.duration, body);
       else body();

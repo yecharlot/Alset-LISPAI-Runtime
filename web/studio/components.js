@@ -98,14 +98,14 @@ export const TEMPLATES = [
 ];
 
 export const THEME_COLORS = {
-  primary: '#e8c547',
-  secondary: '#6ea8fe',
-  background: '#0b0e14',
-  surface: '#161b24',
-  success: '#3ddc97',
-  danger: '#f07178',
-  muted: '#8b93a7',
-  text: '#eef1f6',
+  primary: '#f5c542',
+  secondary: '#5b9cf5',
+  background: '#09090b',
+  surface: '#161922',
+  success: '#34d399',
+  danger: '#f87171',
+  muted: '#a1a1aa',
+  text: '#f4f4f5',
 };
 
 export const DEVICES = [

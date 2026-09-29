@@ -3,68 +3,118 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-  <title>Alset Studio No-Code</title>
+  <title>Alset Studio</title>
   <link rel="stylesheet" href="/css/studio.css" />
 </head>
 <body>
-  <header class="top">
-    <div class="brand">ALSET STUDIO <small>sandbox · no-code · PWA · RootCID</small></div>
-    <input id="app-name" value="mi-app" class="name-input" />
+  <header class="top" id="topbar">
+    <div class="brand">ALSET STUDIO <small>no-code · Alset-JS · PWA</small></div>
+    <input id="app-name" value="mi-app" class="name-input" title="Nombre de la app" />
     <span id="status" class="badge">listo</span>
     <div class="spacer"></div>
+    <div class="panel-toggles" title="Mostrar / ocultar paneles">
+      <button type="button" class="btn btn-ghost panel-tog" data-panel="left" aria-pressed="true">Toolbox</button>
+      <button type="button" class="btn btn-ghost panel-tog" data-panel="right" aria-pressed="true">Props</button>
+      <button type="button" class="btn btn-ghost panel-tog" data-panel="bottom" aria-pressed="true">Consola</button>
+      <button type="button" class="btn btn-ghost panel-tog" data-panel="preview" aria-pressed="true">Preview</button>
+    </div>
+    <button type="button" class="btn btn-ghost" id="btn-examples">Ejemplos</button>
     <button type="button" class="btn btn-ghost" id="btn-clear-preview">Limpiar preview</button>
-    <button type="button" class="btn btn-ghost" id="btn-clear">Limpiar canvas</button>
-    <button type="button" class="btn btn-blue" id="btn-export">Export .alset</button>
+    <button type="button" class="btn btn-ghost" id="btn-clear">Limpiar</button>
+    <button type="button" class="btn btn-blue" id="btn-export">Export</button>
     <button type="button" class="btn btn-gold" id="btn-deploy">Desplegar PWA</button>
   </header>
 
   <div id="error-box" class="error-box hidden" role="alert"></div>
 
-  <div class="main">
-    <aside class="col">
-      <h3>Plantillas</h3>
-      <div id="templates" class="templates"></div>
-      <h3>Toolbox</h3>
-      <div id="toolbox" class="toolbox"></div>
-      <h3>Colores tema</h3>
-      <div id="colors" class="colors"></div>
-    </aside>
+  <!-- Examples drawer -->
+  <aside id="examples-drawer" class="examples-drawer hidden" aria-label="Ejemplos">
+    <div class="examples-head">
+      <strong>Ejemplos listos</strong>
+      <button type="button" class="btn btn-ghost" id="btn-close-examples">Cerrar</button>
+    </div>
+    <div id="examples-list" class="examples-list"></div>
+  </aside>
 
-    <section class="col canvas-wrap">
-      <h3>Canvas</h3>
-      <div id="canvas"></div>
-      <div class="preview-bar">
-        <h3>Preview vivo</h3>
+  <div class="workbench" id="workbench">
+    <!-- Left -->
+    <aside class="pane pane-left" id="pane-left" data-pane="left">
+      <div class="pane-head">
+        <span>Toolbox</span>
+        <button type="button" class="icon-btn" data-close="left" title="Cerrar">×</button>
+      </div>
+      <div class="pane-body">
+        <h3>Plantillas</h3>
+        <div id="templates" class="templates"></div>
+        <h3>Componentes</h3>
+        <div id="toolbox" class="toolbox"></div>
+        <h3>Colores</h3>
+        <div id="colors" class="colors"></div>
+      </div>
+    </aside>
+    <div class="splitter v" data-split="left" title="Arrastrar para redimensionar"></div>
+
+    <!-- Center -->
+    <section class="pane pane-center" id="pane-center">
+      <div class="pane-head">
+        <span>Canvas</span>
         <div id="devices" class="devices"></div>
       </div>
-      <div id="preview" class="preview-area"></div>
+      <div class="center-stack" id="center-stack">
+        <div id="canvas" class="canvas-area"></div>
+        <div class="splitter h" data-split="preview" title="Arrastrar altura preview"></div>
+        <div class="preview-pane" id="pane-preview" data-pane="preview">
+          <div class="pane-head sub">
+            <span>Preview · Alset-JS</span>
+            <button type="button" class="icon-btn" data-close="preview" title="Cerrar preview">×</button>
+          </div>
+          <div id="preview" class="preview-area"></div>
+        </div>
+      </div>
     </section>
+    <div class="splitter v" data-split="right" title="Arrastrar para redimensionar"></div>
 
-    <aside class="col">
-      <h3>Propiedades</h3>
-      <div id="props" class="props"></div>
-      <h3>LispAI (set-prop seguro)</h3>
-      <textarea id="lisp" class="lisp" spellcheck="false"></textarea>
-      <div class="row-btns">
-        <button type="button" class="btn btn-blue" id="btn-apply-lisp">Aplicar Lisp</button>
-        <button type="button" class="btn btn-ghost" id="btn-sync-lisp">Sync desde árbol</button>
+    <!-- Right -->
+    <aside class="pane pane-right" id="pane-right" data-pane="right">
+      <div class="pane-head">
+        <span>Propiedades</span>
+        <button type="button" class="icon-btn" data-close="right" title="Cerrar">×</button>
+      </div>
+      <div class="pane-body">
+        <div id="props" class="props"></div>
+        <h3>LispAI</h3>
+        <textarea id="lisp" class="lisp" spellcheck="false"></textarea>
+        <div class="row-btns">
+          <button type="button" class="btn btn-blue" id="btn-apply-lisp">Aplicar</button>
+          <button type="button" class="btn btn-ghost" id="btn-sync-lisp">Sync árbol</button>
+        </div>
       </div>
     </aside>
   </div>
 
-  <div class="bottom">
-    <section>
-      <h3>App JSON</h3>
-      <pre id="appjson"></pre>
-    </section>
-    <section>
-      <h3>Consola</h3>
-      <pre id="console"></pre>
-    </section>
+  <div class="splitter h bottom-split" data-split="bottom" title="Arrastrar altura consola"></div>
+
+  <div class="bottom" id="pane-bottom" data-pane="bottom">
+    <div class="pane-head sub">
+      <span>Salida</span>
+      <button type="button" class="icon-btn" data-close="bottom" title="Cerrar">×</button>
+    </div>
+    <div class="bottom-grid">
+      <section>
+        <h3>App JSON</h3>
+        <pre id="appjson"></pre>
+      </section>
+      <section>
+        <h3>Consola</h3>
+        <pre id="console"></pre>
+      </section>
+    </div>
   </div>
 
   <script type="module">
     import { bootBuilder } from '/studio/builder.js';
+    import { bootLayout } from '/studio/layout.js';
+    bootLayout();
     bootBuilder();
   </script>
 </body>
