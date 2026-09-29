@@ -198,6 +198,7 @@ export function treeToApp(nodes, meta = {}) {
     tree: nodes,
     states: meta.states || {},
     theme: meta.theme || THEME_COLORS,
+    device: meta.device || null,
     pwa: true,
   };
 }

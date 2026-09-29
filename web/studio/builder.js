@@ -441,20 +441,28 @@ export function bootBuilder() {
     a.download = (app.name || 'app') + '.alset.json';
     a.click();
   };
-  $('btn-deploy').onclick = async () => {
-    const app = treeToApp(tree, { name: $('app-name').value || 'app', states: stateDump(), agent: 'studio' });
+    $('btn-deploy').onclick = async () => {
     try {
+      const payload = treeToApp(tree, {
+        name: $('app-name').value,
+        states: stateDump(),
+        device: deviceId,
+      });
       const r = await fetch('/v1/deploy', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(app),
+        body: JSON.stringify(payload),
       });
       const j = await r.json();
       if (!r.ok) throw new Error(j.error || 'deploy failed');
-      const openUrl = j.url && j.url.startsWith('http') ? j.url : (location.origin + (j.url || '/'));
-      log('deploy PWA ' + openUrl + ' rootcid=' + (j.rootcid || '—'));
+      let openUrl = j.url || ('/apps/' + encodeURIComponent($('app-name').value || 'app') + '/');
+      if (!openUrl.startsWith('http')) openUrl = location.origin + openUrl;
+      log('deploy PWA (mismo runtime que preview) → ' + openUrl);
+      log('rootcid=' + (j.rootcid || '—'));
       $('status').textContent = 'deployed';
-      window.open(openUrl, '_blank', 'noopener');
+      $('status').className = 'badge ok';
+      const win = window.open(openUrl, '_blank', 'noopener,noreferrer');
+      if (!win) log('El navegador bloqueó la pestaña: abre manualmente ' + openUrl);
     } catch (e) {
       reportError(e, 'deploy');
     }

@@ -211,17 +211,25 @@ pre{background:#0a0d12;padding:10px;border-radius:10px;overflow:auto;font-size:1
 <script>
 const mount=document.getElementById('mount');
 const out=document.getElementById('out');
-const w=Math.min(window.innerWidth,430);
 fetch('app.alset.json').then(r=>r.json()).then(j=>{
   document.getElementById('cid').textContent=j.rootcid||'—';
   out.textContent=JSON.stringify(j,null,2);
-  const device={id:'mobile',label:'App',width:w,height:window.innerHeight-60};
   if(!window.AlsetAppRuntime){
-    mount.textContent='Falta app-runtime.js';
+    mount.textContent='Falta app-runtime.js — vuelve a desplegar desde el Studio';
     return;
   }
+  const w=window.innerWidth||390;
+  let device;
+  if(w<600) device={id:'mobile',label:'Móvil',width:Math.min(w,430),height:window.innerHeight-56};
+  else if(w<1024) device={id:'tablet',label:'Tablet',width:Math.min(w,768),height:window.innerHeight-56};
+  else device={id:'desktop',label:'Desktop',width:Math.min(w,1100),height:window.innerHeight-56};
+  // Prefer device used in Studio if present
+  if(j.device==='mobile'||j.device==='tablet'||j.device==='desktop'){
+    const map={mobile:{id:'mobile',label:'Móvil',width:390},tablet:{id:'tablet',label:'Tablet',width:768},desktop:{id:'desktop',label:'Desktop',width:1100}};
+    device=Object.assign({},map[j.device],{height:window.innerHeight-56});
+  }
   window.AlsetAppRuntime.mount(mount,{
-    device,
+    device:device,
     tree:j.tree||[],
     states:j.states||{},
     interactive:false,

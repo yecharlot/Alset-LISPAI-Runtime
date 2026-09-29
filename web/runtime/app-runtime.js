@@ -22,6 +22,15 @@
     return e;
   }
 
+  function addClass(node, ...tokens) {
+    for (const tok of tokens) {
+      if (tok != null && String(tok).trim() !== '') {
+        try { node.classList.add(String(tok).trim()); } catch (_) {}
+      }
+    }
+  }
+
+
   function resolveLayout(p, deviceId) {
     const base = {
       x: p.x != null ? Number(p.x) : null,
@@ -68,42 +77,56 @@
     return THEME[c] || c;
   }
 
-  /** Interactive layer for studio preview */
+  /** Interactive layer: each node moves/resizes independently (live CSS, commit on pointerup). */
   function attachInteract(host, tree, deviceId, onChange) {
     if (!host || !onChange) return;
     host.querySelectorAll('[data-node-id]').forEach((box) => {
       const id = box.getAttribute('data-node-id');
       if (!id) return;
-      box.style.outline = box.classList.contains('rt-selected') ? '2px solid ' + THEME.primary : '';
-      // drag move
+      if (box.dataset.interactBound === '1') return;
+      box.dataset.interactBound = '1';
+      box.style.cursor = 'grab';
+      if (getComputedStyle(box).position === 'static') box.style.position = 'relative';
+
       box.addEventListener('pointerdown', (ev) => {
+        // Only this node: ignore if event started on a deeper node with its own id
+        const deepest = ev.target.closest('[data-node-id]');
+        if (deepest && deepest !== box) return;
         if (ev.target.closest('.rt-handle')) return;
+        if (ev.target.closest('button, input, textarea, a, select')) return;
         if (ev.button != null && ev.button !== 0) return;
+        ev.stopPropagation();
         const startX = ev.clientX;
         const startY = ev.clientY;
         const p = findProps(tree, id) || {};
         const L = resolveLayout(p, deviceId);
         const ox = L.x != null ? L.x : 0;
         const oy = L.y != null ? L.y : 0;
+        box.style.cursor = 'grabbing';
         box.setPointerCapture?.(ev.pointerId);
+        let last = { x: ox, y: oy };
         const move = (e) => {
-          const dx = e.clientX - startX;
-          const dy = e.clientY - startY;
-          onChange(id, deviceId, { x: Math.round(ox + dx), y: Math.round(oy + dy) });
+          const nx = Math.round(ox + (e.clientX - startX));
+          const ny = Math.round(oy + (e.clientY - startY));
+          last = { x: nx, y: ny };
+          box.style.left = nx + 'px';
+          box.style.top = ny + 'px';
+          box.style.position = 'relative';
         };
         const up = () => {
+          box.style.cursor = 'grab';
           window.removeEventListener('pointermove', move);
           window.removeEventListener('pointerup', up);
+          onChange(id, deviceId, last);
         };
         window.addEventListener('pointermove', move);
         window.addEventListener('pointerup', up);
       });
-      // resize handle
-      let handle = box.querySelector('.rt-handle');
+
+      let handle = box.querySelector(':scope > .rt-handle');
       if (!handle) {
         handle = el('div', 'rt-handle');
-        handle.title = 'Redimensionar';
-        box.style.position = box.style.position || 'relative';
+        handle.title = 'Redimensionar este nodo';
         box.appendChild(handle);
       }
       handle.onpointerdown = (ev) => {
@@ -113,17 +136,20 @@
         const startY = ev.clientY;
         const p = findProps(tree, id) || {};
         const L = resolveLayout(p, deviceId);
-        const ow = L.width != null ? L.width : box.offsetWidth;
-        const oh = L.height != null ? L.height : box.offsetHeight;
+        const ow = L.width != null ? L.width : Math.max(box.offsetWidth, 40);
+        const oh = L.height != null ? L.height : Math.max(box.offsetHeight, 24);
+        let last = { width: ow, height: oh };
         const move = (e) => {
-          onChange(id, deviceId, {
-            width: Math.max(40, Math.round(ow + (e.clientX - startX))),
-            height: Math.max(24, Math.round(oh + (e.clientY - startY))),
-          });
+          const w = Math.max(40, Math.round(ow + (e.clientX - startX)));
+          const h = Math.max(24, Math.round(oh + (e.clientY - startY)));
+          last = { width: w, height: h };
+          box.style.width = w + 'px';
+          box.style.height = h + 'px';
         };
         const up = () => {
           window.removeEventListener('pointermove', move);
           window.removeEventListener('pointerup', up);
+          onChange(id, deviceId, last);
         };
         window.addEventListener('pointermove', move);
         window.addEventListener('pointerup', up);
@@ -159,7 +185,7 @@
     const wrap = el('div', 'rt-node');
     wrap.setAttribute('data-node-id', n.id || '');
     wrap.setAttribute('data-type', n.type);
-    if (ctx.selectedId && n.id === ctx.selectedId) wrap.classList.add('rt-selected');
+    if (ctx.selectedId && n.id === ctx.selectedId) addClass(wrap, 'rt-selected');
     applyLayout(wrap, p, deviceId);
 
     const kids = (host) => (n.children || []).forEach((c) => paintNode(host, c, ctx, depth + 1));
@@ -209,7 +235,7 @@
         break;
       }
       case 'metric': {
-        wrap.classList.add('rt-card');
+        addClass(wrap, 'rt-card');
         wrap.appendChild(el('div', 'rt-muted', p.title || 'KPI'));
         const v = el('div', 'rt-metric-val', String(p.value ?? ctx.state?.[p.state] ?? '—'));
         wrap.appendChild(v);
@@ -217,14 +243,14 @@
         break;
       }
       case 'hero': {
-        wrap.classList.add('rt-card', 'rt-hero');
+        addClass(wrap, 'rt-card', 'rt-hero');
         const t = el('div', 'rt-hero-title', p.title || 'Hero');
         wrap.appendChild(t);
         if (p.subtitle) wrap.appendChild(el('div', 'rt-muted', p.subtitle));
         break;
       }
       case 'nav': {
-        wrap.classList.add('rt-row');
+        addClass(wrap, 'rt-row');
         const st = p.state || 'tab';
         const cur = ctx.state?.[st] || String(p.tabs || '').split(',')[0]?.trim();
         String(p.tabs || 'A,B')
@@ -246,7 +272,7 @@
       case 'tabs':
       case 'tabs-shell': {
         // Shell with tab bar + panels as children (one visible)
-        wrap.classList.add('rt-tabs-shell');
+        addClass(wrap, 'rt-tabs-shell');
         const st = p.state || 'tab';
         const labels = String(p.tabs || '')
           .split(',')
@@ -291,9 +317,14 @@
       case 'drawer':
       case 'side-menu': {
         const openKey = p.state || 'drawerOpen';
-        const open = ctx.state?.[openKey] !== false && (ctx.state?.[openKey] === true || p.open === true || p.open === 'true');
+        let open = false;
+        if (ctx.state && Object.prototype.hasOwnProperty.call(ctx.state, openKey)) {
+          open = !!ctx.state[openKey];
+        } else {
+          open = p.open === true || p.open === 'true' || p.open === 1 || p.open === '1';
+        }
         const side = p.side === 'right' ? 'right' : 'left';
-        wrap.classList.add('rt-drawer', open ? 'open' : '', side);
+        addClass(wrap, 'rt-drawer', open ? 'open' : null, side);
         const panel = el('div', 'rt-drawer-panel');
         panel.appendChild(el('div', 'rt-drawer-title', p.title || 'Menú'));
         kids(panel);
@@ -310,12 +341,12 @@
       case 'splash': {
         const ms = Number(p.duration) || 1800;
         const animated = p.animated !== false && p.animated !== 'false';
-        wrap.classList.add('rt-splash', animated ? 'anim' : '');
+        addClass(wrap, 'rt-splash', animated ? 'anim' : null);
         wrap.appendChild(el('div', 'rt-splash-title', p.title || 'Alset'));
         if (p.subtitle) wrap.appendChild(el('div', 'rt-muted', p.subtitle));
         if (p.autoHide !== false && p.autoHide !== 'false') {
           setTimeout(() => {
-            wrap.classList.add('hide');
+            addClass(wrap, 'hide');
             if (p.state && ctx.setState) ctx.setState(p.state, 'done');
           }, ms);
         }
@@ -333,7 +364,7 @@
         break;
       }
       case 'api': {
-        wrap.classList.add('rt-card');
+        addClass(wrap, 'rt-card');
         wrap.appendChild(el('div', 'rt-muted', 'GET ' + (p.url || '') + ' → ' + (p.state || 'apiData')));
         if (p.auto && p.url && !ctx._apiOnce?.[n.id || p.url]) {
           ctx._apiOnce = ctx._apiOnce || {};
@@ -355,7 +386,7 @@
         break;
       case 'list': {
         const data = ctx.state?.[p.state];
-        wrap.classList.add('rt-card');
+        addClass(wrap, 'rt-card');
         if (Array.isArray(data)) {
           data.forEach((item) => wrap.appendChild(el('div', 'rt-list-item', typeof item === 'object' ? JSON.stringify(item) : String(item))));
         } else if (data && typeof data === 'object') {
@@ -388,7 +419,7 @@
       case 'form-register':
       case 'form-contact':
       case 'login-token': {
-        wrap.classList.add('rt-card', 'rt-col');
+        addClass(wrap, 'rt-card', 'rt-col');
         wrap.appendChild(el('div', 'rt-form-title', p.title || n.type));
         const fields =
           n.type === 'form-contact'
@@ -456,7 +487,7 @@
         break;
       case 'auth-gate':
       case 'gate': {
-        wrap.classList.add('rt-card');
+        addClass(wrap, 'rt-card');
         const role = p.role || 'user';
         const session = ctx.state?.session || { role: 'guest' };
         const order = ['guest', 'user', 'operator', 'admin', 'master'];
@@ -472,10 +503,13 @@
       case 'anim-fade':
       case 'anim-slide':
       case 'anim-scale': {
-        wrap.classList.add(
-          n.type === 'row' ? 'rt-row' : n.type === 'card' ? 'rt-card rt-col' : 'rt-col'
-        );
-        if (n.type.startsWith('anim-') && p.animated !== false) wrap.classList.add('rt-anim-' + n.type.replace('anim-', ''));
+        if (n.type === 'row') addClass(wrap, 'rt-row');
+        else if (n.type === 'card') addClass(wrap, 'rt-card', 'rt-col');
+        else addClass(wrap, 'rt-col');
+        if (n.type.startsWith('anim-') && p.animated !== false) {
+          const ak = 'rt-anim-' + n.type.replace('anim-', '');
+          if (ak && ak !== 'rt-anim-') addClass(wrap, ak);
+        }
         if (p.gap) wrap.style.gap = Number(p.gap) + 'px';
         if (p.pad) wrap.style.padding = Number(p.pad) + 'px';
         kids(wrap);
