@@ -51,7 +51,17 @@ export const CATALOG = [
     { type: 'drawer', label: 'Menú lateral', defaults: { title: 'Menú', state: 'drawerOpen', side: 'left', open: false }, container: true },
     { type: 'side-menu', label: 'Side menu', defaults: { title: 'Navegación', state: 'drawerOpen', side: 'left' }, container: true },
     { type: 'tabs-shell', label: 'Tabs (shell)', defaults: { tabs: 'Inicio,Explorar,Perfil', state: 'tab' }, container: true },
+    { type: 'bottom-tabs', label: 'Bottom tabs', defaults: { tabs: 'Inicio,Buscar,Carrito,Yo', icons: '⌂,⌕,▣,☺', state: 'mainTab' }, container: true },
+    { type: 'stack', label: 'Stack', defaults: { state: 'stack', animated: true }, container: true },
     { type: 'splash', label: 'Splash pro', defaults: { title: 'Alset', subtitle: 'Cargando…', duration: 1800, animated: true, autoHide: true, state: 'splash', from: '#0b0e14', to: '#1a1430', icon: 'pulse', spinner: true } },
+  ]},
+  { group: 'Formas', items: [
+    { type: 'shape', label: 'Círculo', defaults: { kind: 'circle', size: 72, color: 'primary', text: '' } },
+    { type: 'shape', label: 'Blob', defaults: { kind: 'blob', size: 88, from: '#f5c542', to: '#fb7185' } },
+    { type: 'shape', label: 'Recorte', defaults: { kind: 'cut', width: 120, height: 80, from: '#5b9cf5', to: '#22d3ee' } },
+    { type: 'shape', label: 'Píldora', defaults: { kind: 'pill', width: 140, height: 40, color: 'primary', text: 'Pill' } },
+    { type: 'shape', label: 'Hexágono', defaults: { kind: 'hex', size: 72, from: '#a3e635', to: '#2dd4bf' } },
+    { type: 'shape', label: 'Diamante', defaults: { kind: 'diamond', size: 64, color: 'secondary' } },
   ]},
   { group: 'Alset-JS · Chronos', items: [
     { type: 'icon', label: 'Icon', defaults: { name: 'pulse', size: 24, color: 'primary' } },
@@ -303,7 +313,7 @@ export function uid() { return 'n' + (_id++); }
 export function createNode(type, defaults = {}) {
   const meta = CATALOG.flatMap((g) => g.items).find((i) => i.type === type);
   const d = { ...(meta?.defaults || {}), ...defaults };
-  const container = meta?.container || ['column', 'row', 'card', 'form', 'anim-fade', 'anim-slide', 'anim-scale', 'auth-gate', 'gate', 'drawer', 'side-menu', 'tabs-shell', 'gradient', 'gradient-image', 'glass', 'router', 'layer', 'animate'].includes(type);
+  const container = meta?.container || ['column', 'row', 'card', 'form', 'anim-fade', 'anim-slide', 'anim-scale', 'auth-gate', 'gate', 'drawer', 'side-menu', 'tabs-shell', 'bottom-tabs', 'stack', 'gradient', 'gradient-image', 'glass', 'router', 'layer', 'animate'].includes(type);
   return {
     id: uid(),
     type,

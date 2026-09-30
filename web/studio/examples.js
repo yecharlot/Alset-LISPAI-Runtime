@@ -567,6 +567,217 @@ function proOnboard() {
 }
 
 
+
+
+/* ── Gemelas verticales: Sales Hub · La Tati · ÁbacoPhy · PrismaTec ── */
+function twinSalesHub() {
+  const root = col(0, 0);
+  const tabs = createNode('bottom-tabs', {
+    tabs: 'Inicio,Productos,Chats,Plan,Yo',
+    icons: '⌂,▣,✎,★,☺',
+    state: 'mainTab',
+  });
+  // Inicio
+  const home = col(12, 12);
+  home.children.push(title('Alset Sales Hub', 18));
+  home.children.push(muted('Negocio · gestor · cliente'));
+  const k = row(8);
+  k.children.push(metric('Ventas hoy', '12', 'vHoy', 'reales'));
+  k.children.push(metric('Gestores', '4', 'gest', 'activos'));
+  home.children.push(k);
+  home.children.push(createNode('glass', { pad: 12, gap: 6 }));
+  home.children[home.children.length - 1].children.push(muted('Auditoría de chats y ranking premium en planes pagos'));
+  // Productos
+  const prod = col(10, 12);
+  prod.children.push(title('Catálogo', 17));
+  prod.children.push(createNode('form-search', { state: 'q', placeholder: 'Buscar producto…' }));
+  prod.children.push(createNode('lazy-column', { state: 'salesProducts', height: 260, pageSize: 5, itemLabel: 'Producto' }));
+  prod.children.push(btn('Publicar producto', 'nav-new-product'));
+  // Chats
+  const chats = col(10, 12);
+  chats.children.push(title('Conversaciones', 17));
+  chats.children.push(createNode('list', { state: 'chats', empty: 'Sin mensajes · tiempo real' }));
+  // Plan
+  const plan = col(10, 12);
+  plan.children.push(title('Tu plan', 17));
+  plan.children.push(createNode('select', { label: 'Plan', state: 'plan', options: 'Gratis,Profesional 250 CUP,Premium 500 CUP,Extra 1000 CUP' }));
+  plan.children.push(btn('Solicitar cambio', 'plan-change'));
+  // Yo
+  const me = col(10, 12);
+  me.children.push(title('Perfil', 17));
+  me.children.push(createNode('form-login', { title: 'Sesión Sales Hub' }));
+  tabs.children.push(home, prod, chats, plan, me);
+  root.children.push(tabs);
+  return [root];
+}
+
+function twinLaTati() {
+  const root = col(0, 0);
+  const top = row(10);
+  top.props.pad = 12;
+  top.children.push(createNode('hamburger', { state: 'drawerOpen' }));
+  top.children.push(title('La Tati', 18));
+  top.children.push(createNode('badge', { text: 'gestora' }));
+  root.children.push(top);
+  const dr = createNode('drawer', { title: 'La Tati', subtitle: 'Gestión de ventas', state: 'drawerOpen', open: false });
+  dr.children.push(createNode('button', { text: 'Catálogo', action: 'tab-Catálogo', icon: '▣' }));
+  dr.children.push(createNode('button', { text: 'Pedidos', action: 'tab-Pedidos', icon: '✎' }));
+  dr.children.push(createNode('button', { text: 'Intereses', action: 'tab-Intereses', icon: '★' }));
+  dr.children.push(createNode('button', { text: 'Chat', action: 'tab-Chat', icon: '✉' }));
+  root.children.push(dr);
+  const shell = createNode('bottom-tabs', {
+    tabs: 'Catálogo,Pedidos,Intereses,Chat',
+    icons: '▣,✎,★,✉',
+    state: 'mainTab',
+  });
+  const cat = col(10, 12);
+  cat.children.push(createNode('form-search', { state: 'q', placeholder: 'Filtrar por categoría…' }));
+  cat.children.push(createNode('select', { label: 'Categoría', state: 'cat', options: 'Todo,Ropa,Hogar,Comida,Tech' }));
+  cat.children.push(createNode('lazy-column', { state: 'tatiProducts', height: 240, pageSize: 5, itemLabel: 'Oferta' }));
+  cat.children.push(btn('Agregar al carrito', 'add-cart'));
+  const ped = col(10, 12);
+  ped.children.push(title('Pedidos', 16));
+  ped.children.push(createNode('list', { state: 'tatiOrders', empty: 'Sin pedidos · confirma con el negocio' }));
+  ped.children.push(btn('Confirmar pedido', 'confirm-order'));
+  ped.children.push(btn('Cancelar pedido', 'cancel-order'));
+  const int = col(10, 12);
+  int.children.push(title('Intereses (sin precio)', 16));
+  int.children.push(createNode('list', { state: 'tatiInterest', empty: 'Nadie marcó interés aún' }));
+  const chat = col(10, 12);
+  chat.children.push(title('Chat cliente', 16));
+  chat.children.push(createNode('list', { state: 'tatiChat', empty: 'Escribe al cliente por el pedido' }));
+  chat.children.push(createNode('input', { placeholder: 'Mensaje…', state: 'msg' }));
+  chat.children.push(btn('Enviar', 'send-msg'));
+  shell.children.push(cat, ped, int, chat);
+  root.children.push(shell);
+  return [root];
+}
+
+function twinGestionTati() {
+  // Vista gestora / operaciones
+  const root = col(0, 0);
+  const tabs = createNode('bottom-tabs', {
+    tabs: 'Hoy,Publicar,Stock,Vales',
+    icons: '⌂,+,▦,✓',
+    state: 'mainTab',
+  });
+  const hoy = col(12, 12);
+  hoy.children.push(title('Gestión La Tati', 18));
+  const k = row(8);
+  k.children.push(metric('Pedidos', '7', 'pPend', 'por confirmar'));
+  k.children.push(metric('Agotados', '2', 'agot', '24h'));
+  hoy.children.push(k);
+  hoy.children.push(createNode('list', { state: 'gestionQueue', empty: 'Cola vacía' }));
+  const pub = col(10, 12);
+  pub.children.push(title('Publicar oferta', 16));
+  pub.children.push(createNode('input', { placeholder: 'Nombre del producto', state: 'pname' }));
+  pub.children.push(createNode('input', { placeholder: 'Precio (opcional)', state: 'price', type: 'number' }));
+  pub.children.push(createNode('select', { label: 'Moneda', state: 'cur', options: 'CUP,USD,EUR,Zelle' }));
+  pub.children.push(createNode('select', { label: 'Categoría', state: 'cat', options: 'Ropa,Hogar,Comida,Tech,Otro' }));
+  pub.children.push(createNode('switch', { label: 'Solo domicilio', state: 'domicilio' }));
+  pub.children.push(btn('Publicar', 'publish'));
+  const stock = col(10, 12);
+  stock.children.push(title('Stock / agotados', 16));
+  stock.children.push(createNode('lazy-column', { state: 'stockList', height: 220, pageSize: 6, itemLabel: 'SKU' }));
+  stock.children.push(btn('Marcar agotado', 'mark-out'));
+  const vales = col(10, 12);
+  vales.children.push(title('Vales de recogida', 16));
+  vales.children.push(createNode('list', { state: 'vales', empty: 'Sin vales generados' }));
+  vales.children.push(btn('Escanear QR cliente', 'scan-qr'));
+  tabs.children.push(hoy, pub, stock, vales);
+  root.children.push(tabs);
+  return [root];
+}
+
+function twinAbacoPhy() {
+  const root = col(0, 0);
+  const top = row(10);
+  top.props.pad = 12;
+  top.children.push(createNode('hamburger', { state: 'drawerOpen' }));
+  top.children.push(title('ÁbacoPhy', 17));
+  top.children.push(createNode('badge', { text: 'PyME' }));
+  root.children.push(top);
+  const dr = createNode('drawer', { title: 'ÁbacoPhy', subtitle: 'Contabilidad', state: 'drawerOpen', open: false });
+  [
+    ['Dashboard', 'tab-Dashboard', '▦'],
+    ['Inventario', 'tab-Inventario', '▣'],
+    ['Facturas', 'tab-Facturas', '✎'],
+    ['Nómina', 'tab-Nómina', '☺'],
+    ['Nomencladores', 'tab-Nomencladores', '⚙'],
+    ['Trazas', 'tab-Trazas', '⌕'],
+  ].forEach(([lab, act, ic]) => {
+    dr.children.push(createNode('button', { text: lab, action: act, icon: ic }));
+  });
+  root.children.push(dr);
+  const tabs = createNode('bottom-tabs', {
+    tabs: 'Dashboard,Inventario,Facturas,Nómina,Más',
+    icons: '▦,▣,✎,☺,☰',
+    state: 'mainTab',
+  });
+  const dash = col(10, 12);
+  dash.children.push(title('Estado financiero', 16));
+  const k = row(8);
+  k.children.push(metric('Ingresos', '45k CUP', 'ing', 'mes'));
+  k.children.push(metric('Gastos', '28k CUP', 'gas', 'mes'));
+  dash.children.push(k);
+  dash.children.push(createNode('glass', { pad: 12, gap: 6 }));
+  dash.children[dash.children.length - 1].children.push(muted('Ecuación contable · cuentas T · CID'));
+  const inv = col(10, 12);
+  inv.children.push(title('Inventario', 16));
+  inv.children.push(createNode('lazy-column', { state: 'abacoStock', height: 240, pageSize: 6, itemLabel: 'Producto' }));
+  inv.children.push(btn('Rebaja / salida', 'stock-out'));
+  const fac = col(10, 12);
+  fac.children.push(title('Facturas', 16));
+  fac.children.push(createNode('list', { state: 'invoices', empty: 'Sin facturas' }));
+  fac.children.push(btn('Nueva factura PDF', 'inv-new'));
+  const nom = col(10, 12);
+  nom.children.push(title('Nómina', 16));
+  nom.children.push(createNode('list', { state: 'payroll', empty: 'Sin trabajadores' }));
+  nom.children.push(btn('Exportar nómina', 'nom-export'));
+  const mas = col(10, 12);
+  mas.children.push(title('Más módulos', 16));
+  mas.children.push(createNode('select', { label: 'Rol vista', state: 'roleView', options: 'admin,vendedor,almacenero,economico' }));
+  mas.children.push(muted('Master habilita módulos por negocio'));
+  tabs.children.push(dash, inv, fac, nom, mas);
+  root.children.push(tabs);
+  return [root];
+}
+
+function twinPrismaMind() {
+  const root = col(0, 0);
+  const tabs = createNode('bottom-tabs', {
+    tabs: 'Mind,Gen,Lisp,Red',
+    icons: '⚡,◈,⌘,⌂',
+    state: 'mainTab',
+  });
+  const mind = col(12, 12);
+  mind.children.push(title('Alset Mind', 18));
+  mind.children.push(muted('Órganos ternarios · memoria CID'));
+  mind.children.push(createNode('textarea', { placeholder: 'Escribe al latido…', state: 'mindText', rows: 3 }));
+  mind.children.push(btn('Latido /api/mind/tick', 'mind-tick'));
+  mind.children.push(createNode('glass', { pad: 12, gap: 6 }));
+  mind.children[mind.children.length - 1].children.push(muted('Respuesta del campo (demo Studio)'));
+  const gen = col(10, 12);
+  gen.children.push(title('Alset Gen', 17));
+  gen.children.push(createNode('input', { placeholder: 'clave.ans', state: 'genKey' }));
+  gen.children.push(btn('Crear semilla', 'gen-create'));
+  gen.children.push(btn('Explorar frontera', 'gen-explore'));
+  gen.children.push(createNode('list', { state: 'genFindings', empty: 'Sin hallazgos' }));
+  const lisp = col(10, 12);
+  lisp.children.push(title('LispAI / Zyrion', 17));
+  lisp.children.push(createNode('textarea', { placeholder: '(evaluar-zyrion …)', state: 'lispCmd', rows: 4 }));
+  lisp.children.push(btn('Eval /api/lispai', 'lisp-eval'));
+  const red = col(10, 12);
+  red.children.push(title('Nodo PrismaTec', 17));
+  red.children.push(metric('Peers', '0', 'peers', 'libp2p'));
+  red.children.push(metric('Agentes', '—', 'agents', 'RAM'));
+  red.children.push(btn('GET /api/v2/info', 'api-info'));
+  tabs.children.push(mind, gen, lisp, red);
+  root.children.push(tabs);
+  return [root];
+}
+
+
 export const EXAMPLES = [
   // Marketing
   { id: 'landing', name: 'Landing moderna', blurb: 'Hero + CTA + métrica reactiva', tags: ['marketing', 'hero'], build: landing },
@@ -607,4 +818,10 @@ export const EXAMPLES = [
   { id: 'pro-router', name: 'Tienda + router', blurb: '4 rutas · lazy catálogo · login', tags: ['pro', 'router', 'shop'], build: proRouterShop },
   { id: 'pro-feed', name: 'Feed glass', blurb: 'Cover degradado · lazy · FAB', tags: ['pro', 'glass', 'feed'], build: proFeedGlass },
   { id: 'pro-onboard', name: 'Onboarding Chronos', blurb: 'Splash pro · select · switch', tags: ['pro', 'onboard'], build: proOnboard },
+  // Gemelas de productos reales
+  { id: 'twin-sales', name: 'Alset Sales Hub', blurb: 'Gemela: negocio·gestor·cliente·planes', tags: ['twin', 'sales'], build: twinSalesHub },
+  { id: 'twin-tati', name: 'La Tati', blurb: 'Gemela: catálogo·pedidos·intereses·chat', tags: ['twin', 'tati'], build: twinLaTati },
+  { id: 'twin-gestion-tati', name: 'Gestión La Tati', blurb: 'Gemela gestora: publicar·stock·vales', tags: ['twin', 'tati'], build: twinGestionTati },
+  { id: 'twin-abaco', name: 'ÁbacoPhy', blurb: 'Gemela contable: inventario·facturas·nómina', tags: ['twin', 'abaco'], build: twinAbacoPhy },
+  { id: 'twin-prisma', name: 'PrismaTec Mind', blurb: 'Gemela: Mind·Gen·LispAI·nodo', tags: ['twin', 'prisma'], build: twinPrismaMind },
 ];

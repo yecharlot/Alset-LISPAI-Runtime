@@ -224,13 +224,44 @@
         break;
       }
       case 'button': {
-        const b = el('button', 'rt-btn', p.text || 'OK');
+        const variant = p.variant || (p.drawerItem ? 'drawer' : 'default');
+        const b = el('button', variant === 'drawer' ? 'rt-drawer-item' : 'rt-btn', p.text || 'OK');
         b.type = 'button';
+        if (p.icon) {
+          b.textContent = '';
+          const ic = el('span', 'rt-drawer-item-icon', p.icon);
+          b.appendChild(ic);
+          b.appendChild(document.createTextNode(' ' + (p.text || 'OK')));
+        }
         if (p.bg) b.style.background = p.bg;
         if (p.color) b.style.color = colorToken(p.color) || p.color;
         b.onclick = () => {
-          log && log('action:' + (p.action || 'click'));
-          ctx.emit && ctx.emit('action', { action: p.action, id: n.id });
+          const action = String(p.action || 'click');
+          log && log('action:' + action);
+          // Cerrar drawers abiertos
+          if (ctx.setState && ctx.state) {
+            Object.keys(ctx.state).forEach((k) => {
+              if (/drawer/i.test(k) && ctx.state[k] === true) ctx.setState(k, false);
+            });
+          }
+          // Navegación: nav-home / route-shop / tab-Pedidos
+          if (/^(nav|route|tab)-/i.test(action)) {
+            const val = action.replace(/^(nav|route|tab)-/i, '');
+            if (ctx.setState) {
+              ctx.setState(p.routeState || 'route', val);
+              ctx.setState(p.tabState || 'mainTab', val);
+              if (p.state) ctx.setState(p.state, val);
+            }
+          }
+          // setState explícito: setState + setValue
+          if (p.setState != null && ctx.setState) {
+            let v = p.setValue;
+            if (v === 'true') v = true;
+            if (v === 'false') v = false;
+            ctx.setState(p.setState, v);
+          }
+          ctx.emit && ctx.emit('action', { action, id: n.id, text: p.text });
+          ctx.remount && ctx.remount();
         };
         wrap.appendChild(b);
         break;
@@ -363,8 +394,24 @@
             ctx.remount && ctx.remount();
           };
           const panel = el('div', 'rt-drawer-panel');
-          panel.appendChild(el('div', 'rt-drawer-title', p.title || 'Menú'));
-          kids(panel);
+          const head = el('div', 'rt-drawer-head');
+          head.appendChild(el('div', 'rt-drawer-avatar', (p.title || 'A').slice(0, 1).toUpperCase()));
+          const headTxt = el('div', 'rt-drawer-head-text');
+          headTxt.appendChild(el('div', 'rt-drawer-title', p.title || 'Menú'));
+          headTxt.appendChild(el('div', 'rt-muted', p.subtitle || 'Navegación'));
+          head.appendChild(headTxt);
+          panel.appendChild(head);
+          const nav = el('div', 'rt-drawer-nav');
+          // Render children as drawer items when they are buttons
+          (n.children || []).forEach((c) => {
+            if (c && c.type === 'button') {
+              const cp = Object.assign({}, c.props || {}, { drawerItem: true, variant: 'drawer' });
+              paintNode(nav, Object.assign({}, c, { props: cp }), ctx, depth + 1);
+            } else {
+              paintNode(nav, c, ctx, depth + 1);
+            }
+          });
+          panel.appendChild(nav);
           layer.appendChild(backdrop);
           layer.appendChild(panel);
           ctx.overlayRoot.appendChild(layer);
@@ -752,6 +799,80 @@
         wrap.appendChild(el('div', 'rt-badge', 'theme · ' + name));
         break;
       }
+
+      case 'bottom-tabs': {
+        // Mobile bottom navigation — panes as children
+        const st = p.state || 'mainTab';
+        const labels = String(p.tabs || 'Inicio,Buscar,Carrito,Yo')
+          .split(',')
+          .map((s) => s.trim())
+          .filter(Boolean);
+        const icons = String(p.icons || '⌂,⌕,▣,☺')
+          .split(',')
+          .map((s) => s.trim());
+        const children = n.children || [];
+        let cur = ctx.state?.[st];
+        if (cur == null || labels.indexOf(cur) < 0) cur = labels[0];
+        addClass(wrap, 'rt-bottom-shell');
+        const content = el('div', 'rt-bottom-content');
+        const idx = Math.max(0, labels.indexOf(cur));
+        if (children[idx]) paintNode(content, children[idx], ctx, depth + 1);
+        else content.appendChild(el('div', 'rt-muted', 'Vista: ' + cur));
+        wrap.appendChild(content);
+        const bar = el('div', 'rt-bottom-bar');
+        labels.forEach((lab, i) => {
+          const item = el('button', 'rt-bottom-item' + (lab === cur ? ' active' : ''));
+          item.type = 'button';
+          item.appendChild(el('span', 'rt-bottom-icon', icons[i] || '•'));
+          item.appendChild(el('span', 'rt-bottom-label', lab));
+          item.onclick = () => {
+            if (ctx.setState) ctx.setState(st, lab);
+            ctx.remount && ctx.remount();
+            log && log('bottom-tab:' + lab);
+          };
+          bar.appendChild(item);
+        });
+        wrap.appendChild(bar);
+        break;
+      }
+      case 'stack': {
+        // Show one child by index/name in state
+        const st = p.state || 'stack';
+        const children = n.children || [];
+        let cur = ctx.state?.[st];
+        if (typeof cur === 'string') {
+          const found = children.findIndex((c) => (c.props && (c.props.name === cur || c.props.title === cur)));
+          cur = found >= 0 ? found : 0;
+        }
+        cur = Number(cur) || 0;
+        if (cur < 0 || cur >= children.length) cur = 0;
+        addClass(wrap, 'rt-stack');
+        if (p.animated !== false) addClass(wrap, 'rt-stack-anim');
+        if (children[cur]) paintNode(wrap, children[cur], ctx, depth + 1);
+        break;
+      }
+      case 'shape': {
+        const kind = p.kind || p.variant || 'rounded';
+        addClass(wrap, 'rt-shape', 'rt-shape-' + kind);
+        if (p.size) {
+          const s = Number(p.size) || 64;
+          wrap.style.width = s + 'px';
+          wrap.style.height = s + 'px';
+        }
+        if (p.width) wrap.style.width = (typeof p.width === 'number' ? p.width + 'px' : p.width);
+        if (p.height) wrap.style.height = (typeof p.height === 'number' ? p.height + 'px' : p.height);
+        if (p.color) wrap.style.background = colorToken(p.color) || p.color;
+        else if (p.from && p.to) wrap.style.backgroundImage = `linear-gradient(135deg, ${p.from}, ${p.to})`;
+        else wrap.style.background = THEME.primary;
+        if (p.text) {
+          wrap.style.display = 'flex';
+          wrap.style.alignItems = 'center';
+          wrap.style.justifyContent = 'center';
+          wrap.appendChild(el('span', '', p.text));
+        }
+        kids(wrap);
+        break;
+      }
       case 'column':
       case 'row':
       case 'card':
@@ -790,7 +911,7 @@
     if (prev) prev.remove();
     const s = doc.createElement('style');
     s.id = 'alset-rt-css';
-    s.setAttribute('data-v', '4');
+    s.setAttribute('data-v', '5');
     s.textContent = `
 .rt-frame{margin:0 auto;border:1px solid ${THEME.line};border-radius:20px;background:#0a0d12;overflow:hidden;position:relative;touch-action:pan-y;isolation:isolate;contain:layout style paint}
 .rt-label{font-size:10px;color:${THEME.muted};padding:8px 12px;border-bottom:1px solid ${THEME.line};flex-shrink:0}
@@ -856,6 +977,33 @@
 .rt-splash-icon{font-size:40px;margin-bottom:8px}
 .rt-spinner{width:28px;height:28px;border:3px solid rgba(255,255,255,0.15);border-top-color:${THEME.primary};border-radius:50%;margin-top:16px;animation:rtSpin .7s linear infinite}
 @keyframes rtSpin{to{transform:rotate(360deg)}}
+
+
+.rt-drawer-panel{display:flex;flex-direction:column;padding:0!important}
+.rt-drawer-head{display:flex;align-items:center;gap:12px;padding:20px 16px 16px;border-bottom:1px solid ${THEME.line};background:linear-gradient(135deg,rgba(245,197,66,0.12),transparent)}
+.rt-drawer-avatar{width:44px;height:44px;border-radius:14px;background:${THEME.primary};color:#111;font-weight:800;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0}
+.rt-drawer-head-text{min-width:0}
+.rt-drawer-nav{display:flex;flex-direction:column;gap:4px;padding:12px;flex:1;overflow:auto}
+.rt-drawer-item{appearance:none;border:0;background:transparent;color:${THEME.text};text-align:left;padding:12px 14px;border-radius:12px;font-size:14px;font-weight:600;cursor:pointer;width:100%;display:flex;align-items:center;gap:10px}
+.rt-drawer-item:hover,.rt-drawer-item:active{background:rgba(245,197,66,0.12);color:${THEME.primary}}
+.rt-drawer-item-icon{opacity:0.85;width:1.25em;text-align:center}
+.rt-bottom-shell{display:flex;flex-direction:column;min-height:320px;height:100%;max-height:100%}
+.rt-bottom-content{flex:1;overflow:auto;padding:8px 4px 4px;min-height:0}
+.rt-bottom-bar{display:flex;flex-direction:row;border-top:1px solid ${THEME.line};background:rgba(12,15,20,0.92);backdrop-filter:blur(12px);padding:6px 4px calc(6px + env(safe-area-inset-bottom,0px));flex-shrink:0;gap:2px}
+.rt-bottom-item{flex:1;appearance:none;border:0;background:transparent;color:${THEME.muted};display:flex;flex-direction:column;align-items:center;gap:2px;padding:6px 2px;border-radius:10px;cursor:pointer;font-size:10px}
+.rt-bottom-item.active{color:${THEME.primary}}
+.rt-bottom-icon{font-size:18px;line-height:1}
+.rt-bottom-label{font-weight:600;max-width:100%;overflow:hidden;text-overflow:ellipsis}
+.rt-stack{position:relative;width:100%}
+.rt-stack-anim{animation:rtSlide .35s ease}
+.rt-shape{display:block;flex-shrink:0}
+.rt-shape-circle{border-radius:50%}
+.rt-shape-blob{border-radius:40% 60% 55% 45% / 45% 40% 60% 55%}
+.rt-shape-rounded{border-radius:20px}
+.rt-shape-cut{clip-path:polygon(12% 0,100% 0,100% 88%,88% 100%,0 100%,0 12%)}
+.rt-shape-pill{border-radius:999px}
+.rt-shape-diamond{clip-path:polygon(50% 0,100% 50%,50% 100%,0 50%)}
+.rt-shape-hex{clip-path:polygon(25% 0,75% 0,100% 50%,75% 100%,25% 100%,0 50%)}
 
 .rt-gesture-hint{position:absolute;bottom:8px;left:8px;right:8px;font-size:10px;color:${THEME.muted};pointer-events:none;opacity:.7}
 `;
