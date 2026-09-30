@@ -96,7 +96,7 @@ body { display: flex; flex-direction: column; min-height: 100dvh; overflow: hidd
   background-size: 18px 18px;
 }
 .preview-pane { display: flex; flex-direction: column; min-height: 0; border-top: 1px solid var(--line); }
-.preview-area { flex: 1; overflow: auto; padding: 14px; background: linear-gradient(180deg, #0a0b10, #09090b); }
+.preview-area { flex: 1; overflow: auto; padding: 14px; background: linear-gradient(180deg, #0a0b10, #09090b); contain: layout style; }
 
 .devices { display: flex; gap: 4px; flex-wrap: wrap; }
 .devices .btn { padding: 4px 8px; font-size: 11px; }

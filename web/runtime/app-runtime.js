@@ -52,14 +52,19 @@
     };
   }
 
-  function applyLayout(node, p, deviceId) {
+  function applyLayout(node, p, deviceId, maxW) {
     const L = resolveLayout(p || {}, deviceId || 'mobile');
     if (L.x != null || L.y != null) {
       node.style.position = 'relative';
       if (L.x != null) node.style.left = L.x + 'px';
       if (L.y != null) node.style.top = L.y + 'px';
     }
-    if (L.width != null) node.style.width = typeof L.width === 'number' ? L.width + 'px' : L.width;
+    if (L.width != null) {
+      let w = L.width;
+      if (typeof w === 'number' && maxW && w > maxW) w = maxW - 8;
+      node.style.width = typeof w === 'number' ? w + 'px' : w;
+      node.style.maxWidth = '100%';
+    }
     if (L.height != null) node.style.height = typeof L.height === 'number' ? L.height + 'px' : L.height;
     if (L.bg) node.style.background = L.bg;
     if (L.color) {
@@ -186,7 +191,7 @@
     wrap.setAttribute('data-node-id', n.id || '');
     wrap.setAttribute('data-type', n.type);
     if (ctx.selectedId && n.id === ctx.selectedId) addClass(wrap, 'rt-selected');
-    applyLayout(wrap, p, deviceId);
+    applyLayout(wrap, p, deviceId, ctx.deviceWidth);
 
     const kids = (host) => (n.children || []).forEach((c) => paintNode(host, c, ctx, depth + 1));
 
@@ -324,30 +329,48 @@
           open = p.open === true || p.open === 'true' || p.open === 1 || p.open === '1';
         }
         const side = p.side === 'right' ? 'right' : 'left';
-        addClass(wrap, 'rt-drawer', open ? 'open' : null, side);
-        const panel = el('div', 'rt-drawer-panel');
-        panel.appendChild(el('div', 'rt-drawer-title', p.title || 'Menú'));
-        kids(panel);
-        const backdrop = el('div', 'rt-drawer-backdrop');
-        backdrop.onclick = () => {
-          if (ctx.setState) ctx.setState(openKey, false);
-          ctx.remount && ctx.remount();
-        };
-        if (open) wrap.appendChild(backdrop);
-        wrap.appendChild(panel);
-        // always in DOM for swipe target
+        // Placeholder in tree flow (no layout impact); real UI is portaled into frame
+        addClass(wrap, 'rt-drawer');
+        wrap.style.height = '0';
+        wrap.style.minHeight = '0';
+        wrap.style.margin = '0';
+        wrap.style.padding = '0';
+        wrap.style.overflow = 'visible';
+        if (open && ctx.overlayRoot) {
+          const layer = el('div', 'rt-drawer-layer open' + (side === 'right' ? ' right' : ''));
+          const backdrop = el('div', 'rt-drawer-backdrop');
+          backdrop.onclick = () => {
+            if (ctx.setState) ctx.setState(openKey, false);
+            ctx.remount && ctx.remount();
+          };
+          const panel = el('div', 'rt-drawer-panel');
+          panel.appendChild(el('div', 'rt-drawer-title', p.title || 'Menú'));
+          kids(panel);
+          layer.appendChild(backdrop);
+          layer.appendChild(panel);
+          ctx.overlayRoot.appendChild(layer);
+        }
         break;
       }
       case 'splash': {
         const ms = Number(p.duration) || 1800;
         const animated = p.animated !== false && p.animated !== 'false';
-        addClass(wrap, 'rt-splash', animated ? 'anim' : null);
-        wrap.appendChild(el('div', 'rt-splash-title', p.title || 'Alset'));
-        if (p.subtitle) wrap.appendChild(el('div', 'rt-muted', p.subtitle));
+        const doneKey = p.state || 'splash';
+        if (ctx.state && ctx.state[doneKey] === 'done') {
+          wrap.style.display = 'none';
+          break;
+        }
+        wrap.style.display = 'none'; // portal only
+        const target = ctx.overlayRoot || ctx.frame || wrap;
+        const layer = el('div', 'rt-splash' + (animated ? ' anim' : ''));
+        layer.appendChild(el('div', 'rt-splash-title', p.title || 'Alset'));
+        if (p.subtitle) layer.appendChild(el('div', 'rt-muted', p.subtitle));
+        target.appendChild(layer);
         if (p.autoHide !== false && p.autoHide !== 'false') {
           setTimeout(() => {
-            addClass(wrap, 'hide');
-            if (p.state && ctx.setState) ctx.setState(p.state, 'done');
+            addClass(layer, 'hide');
+            if (ctx.setState) ctx.setState(doneKey, 'done');
+            setTimeout(() => { try { layer.remove(); } catch (_) {} }, 450);
           }, ms);
         }
         break;
@@ -531,13 +554,15 @@
   }
 
   function injectStyles(doc) {
-    if (doc.getElementById('alset-rt-css')) return;
+    const prev = doc.getElementById('alset-rt-css');
+    if (prev) prev.remove();
     const s = doc.createElement('style');
     s.id = 'alset-rt-css';
+    s.setAttribute('data-v', '2');
     s.textContent = `
-.rt-frame{margin:0 auto;border:1px solid ${THEME.line};border-radius:20px;background:#0a0d12;overflow:hidden;position:relative;touch-action:pan-y}
-.rt-label{font-size:10px;color:${THEME.muted};padding:8px 12px;border-bottom:1px solid ${THEME.line}}
-.rt-host{padding:12px;min-height:80px;color:${THEME.text};position:relative;overflow:auto}
+.rt-frame{margin:0 auto;border:1px solid ${THEME.line};border-radius:20px;background:#0a0d12;overflow:hidden;position:relative;touch-action:pan-y;isolation:isolate;contain:layout style paint}
+.rt-label{font-size:10px;color:${THEME.muted};padding:8px 12px;border-bottom:1px solid ${THEME.line};flex-shrink:0}
+.rt-host{padding:12px;min-height:80px;color:${THEME.text};position:relative;overflow:auto;flex:1;box-sizing:border-box}
 .rt-node{box-sizing:border-box;max-width:100%}
 .rt-selected{outline:2px solid ${THEME.primary}!important;outline-offset:2px}
 .rt-handle{position:absolute;right:0;bottom:0;width:14px;height:14px;background:${THEME.primary};border-radius:2px 0 4px 0;cursor:nwse-resize;z-index:5}
@@ -558,13 +583,23 @@
 .rt-table{width:100%;border-collapse:collapse;font-size:12px}
 .rt-table th,.rt-table td{border:1px solid ${THEME.line};padding:6px 8px;text-align:left}
 .rt-hamburger{appearance:none;border:0;background:${THEME.card};color:${THEME.text};font-size:22px;width:44px;height:44px;border-radius:10px;cursor:pointer}
-.rt-drawer{position:relative;min-height:0}
-.rt-drawer-backdrop{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:40}
-.rt-drawer-panel{position:fixed;top:0;bottom:0;width:min(280px,82vw);background:#12171f;z-index:50;padding:16px;box-shadow:0 0 40px rgba(0,0,0,.5);transform:translateX(-105%);transition:transform .28s ease}
-.rt-drawer.right .rt-drawer-panel{right:0;left:auto;transform:translateX(105%)}
-.rt-drawer.open .rt-drawer-panel{transform:translateX(0)}
+.rt-frame.rt-pwa{width:100%!important;max-width:100%!important;height:100%!important;min-height:100%!important;border:none!important;border-radius:0!important;margin:0!important}
+.rt-overlay-root{position:absolute;inset:0;z-index:40;pointer-events:none;overflow:hidden}
+.rt-overlay-root > *{pointer-events:auto}
+.rt-drawer{position:relative;min-height:0;height:0;overflow:visible;margin:0;padding:0;border:0}
+.rt-drawer-layer{position:absolute;inset:0;z-index:50;pointer-events:auto}
+.rt-drawer-backdrop{position:absolute;inset:0;background:rgba(0,0,0,.45);z-index:1}
+.rt-drawer-panel{position:absolute;top:0;bottom:0;left:0;width:min(280px,82%);max-width:100%;background:#12171f;z-index:2;padding:16px;box-shadow:0 0 40px rgba(0,0,0,.5);transform:translateX(-105%);transition:transform .28s ease;overflow:auto;box-sizing:border-box}
+.rt-drawer-layer.right .rt-drawer-panel{right:0;left:auto;transform:translateX(105%)}
+.rt-drawer-layer.open .rt-drawer-panel{transform:translateX(0)}
 .rt-drawer-title{font-weight:700;color:${THEME.primary};margin-bottom:12px}
-.rt-splash{position:absolute;inset:0;z-index:60;display:flex;flex-direction:column;align-items:center;justify-content:center;background:${THEME.bg};transition:opacity .4s,visibility .4s}
+.rt-splash{position:absolute;inset:0;z-index:60;display:flex;flex-direction:column;align-items:center;justify-content:center;background:${THEME.bg};transition:opacity .4s,visibility .4s;box-sizing:border-box;padding:16px;text-align:center}
+.rt-host,.rt-node,.rt-col,.rt-row,.rt-card{max-width:100%;box-sizing:border-box}
+.rt-row{width:100%}
+.rt-frame[data-device="mobile"] .rt-row > .rt-node[data-type="metric"],
+.rt-frame[data-device="mobile"] .rt-row > .rt-card{flex:1 1 100%;min-width:0}
+.rt-frame[data-device="mobile"] .rt-tabbar,.rt-frame[data-device="mobile"] .rt-row[data-type="nav"]{flex-wrap:wrap}
+.rt-btn{max-width:100%;white-space:nowrap}
 .rt-splash.anim .rt-splash-title{animation:rtPop .6s ease}
 .rt-splash.hide{opacity:0;visibility:hidden;pointer-events:none}
 .rt-splash-title{font-size:28px;font-weight:800;color:${THEME.primary}}
@@ -644,22 +679,44 @@
 
     function paint() {
       host.innerHTML = '';
-      const frame = el('div', 'rt-frame');
-      frame.style.width = (device.width || 390) + 'px';
-      frame.style.maxWidth = '100%';
-      frame.style.minHeight = Math.min(device.height || 640, 640) + 'px';
-      frame.style.overflow = 'hidden';
-      const label = el(
-        'div',
-        'rt-label',
-        `${device.label || device.id} · ${device.width}px` + (opts.interactive ? ' · emulador (arrastrar · esquina = tamaño)' : ' · PWA')
-      );
+      const isPwa = opts.mode === 'pwa' || opts.interactive === false;
+      const frame = el('div', 'rt-frame' + (isPwa ? ' rt-pwa' : ''));
+      frame.setAttribute('data-device', device.id || 'mobile');
+      if (isPwa) {
+        frame.style.width = '100%';
+        frame.style.maxWidth = '100%';
+        frame.style.height = '100%';
+        frame.style.minHeight = '100%';
+        frame.style.overflow = 'hidden';
+      } else {
+        const h = Math.min(device.height || 720, 720);
+        frame.style.width = (device.width || 390) + 'px';
+        frame.style.maxWidth = '100%';
+        frame.style.height = h + 'px';
+        frame.style.minHeight = h + 'px';
+        frame.style.overflow = 'hidden';
+      }
+      if (!isPwa) {
+        const label = el(
+          'div',
+          'rt-label',
+          `${device.label || device.id} · ${device.width}px · emulador`
+        );
+        frame.appendChild(label);
+      }
       const root = el('div', 'rt-host');
-      root.style.minHeight = Math.min((device.height || 640) - 40, 560) + 'px';
-      frame.appendChild(label);
+      root.style.height = isPwa ? '100%' : 'calc(100% - 28px)';
+      root.style.overflow = 'auto';
+      root.style.position = 'relative';
       frame.appendChild(root);
-      if (opts.interactive) {
-        const hint = el('div', 'rt-gesture-hint', 'Gestos: swipe → menú · pull ↓ refresh · arrastra nodo · esquina ↘ resize');
+      // Overlay layer for drawer/splash — always clipped to frame
+      const overlay = el('div', 'rt-overlay-root');
+      frame.appendChild(overlay);
+      ctx.frame = frame;
+      ctx.overlayRoot = overlay;
+      ctx.deviceWidth = device.width || (isPwa ? (host.clientWidth || 390) : 390);
+      if (opts.interactive && !isPwa) {
+        const hint = el('div', 'rt-gesture-hint', 'Gestos: swipe → menú · pull ↓ refresh');
         frame.appendChild(hint);
       }
       host.appendChild(frame);

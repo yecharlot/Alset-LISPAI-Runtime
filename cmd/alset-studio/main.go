@@ -191,11 +191,12 @@ self.addEventListener('fetch',e=>{e.respondWith(caches.match(e.request).then(h=>
 <link rel="manifest" href="manifest.webmanifest"/>
 <title>%s · Alset</title>
 <style>
-html,body{margin:0;height:100%%;background:#0b0e14;color:#eef1f6;font-family:system-ui,-apple-system,sans-serif}
-header{padding:12px 14px;border-bottom:1px solid #1e2530;display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+html,body{margin:0;height:100%%;background:#0b0e14;color:#eef1f6;font-family:system-ui,-apple-system,sans-serif;overflow:hidden}
+header{padding:10px 14px;border-bottom:1px solid #1e2530;display:flex;gap:10px;align-items:center;flex-wrap:wrap;flex-shrink:0}
 header h1{margin:0;font-size:15px;color:#f5c542}
 .meta{color:#8b93a7;font-size:11px}
-#mount{min-height:calc(100dvh - 52px);padding:8px;display:flex;justify-content:center}
+#mount{height:calc(100dvh - 48px);padding:0;display:flex;justify-content:stretch;align-items:stretch;overflow:hidden}
+#mount > *{width:100%%;height:100%%}
 details{margin:12px;color:#8b93a7;font-size:12px}
 pre{background:#0a0d12;padding:10px;border-radius:10px;overflow:auto;font-size:10px;max-height:30vh}
 </style>
@@ -219,21 +220,26 @@ fetch('app.alset.json').then(r=>r.json()).then(j=>{
     return;
   }
   const w=window.innerWidth||390;
+  const h=window.innerHeight||720;
   let device;
-  if(w<600) device={id:'mobile',label:'Móvil',width:Math.min(w,430),height:window.innerHeight-56};
-  else if(w<1024) device={id:'tablet',label:'Tablet',width:Math.min(w,768),height:window.innerHeight-56};
-  else device={id:'desktop',label:'Desktop',width:Math.min(w,1100),height:window.innerHeight-56};
-  // Prefer device used in Studio if present
-  if(j.device==='mobile'||j.device==='tablet'||j.device==='desktop'){
-    const map={mobile:{id:'mobile',label:'Móvil',width:390},tablet:{id:'tablet',label:'Tablet',width:768},desktop:{id:'desktop',label:'Desktop',width:1100}};
-    device=Object.assign({},map[j.device],{height:window.innerHeight-56});
-  }
+  if(w<600) device={id:'mobile',label:'Móvil',width:w,height:h-48};
+  else if(w<1024) device={id:'tablet',label:'Tablet',width:w,height:h-48};
+  else device={id:'desktop',label:'Desktop',width:w,height:h-48};
   window.AlsetAppRuntime.mount(mount,{
     device:device,
     tree:j.tree||[],
     states:j.states||{},
     interactive:false,
+    mode:'pwa',
     log:function(m){console.log('[alset]',m);}
+  });
+  window.addEventListener('resize',function(){
+    const w2=window.innerWidth||390,h2=window.innerHeight||720;
+    let d;
+    if(w2<600) d={id:'mobile',label:'Móvil',width:w2,height:h2-48};
+    else if(w2<1024) d={id:'tablet',label:'Tablet',width:w2,height:h2-48};
+    else d={id:'desktop',label:'Desktop',width:w2,height:h2-48};
+    window.AlsetAppRuntime.mount(mount,{device:d,tree:j.tree||[],states:j.states||{},interactive:false,mode:'pwa'});
   });
 }).catch(e=>{mount.textContent=String(e);});
 if('serviceWorker' in navigator)navigator.serviceWorker.register('sw.js').catch(function(){});
