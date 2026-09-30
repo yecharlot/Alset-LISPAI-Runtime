@@ -338,3 +338,29 @@ body.studio-full .pv-card {
   max-width: 100%;
   box-sizing: border-box;
 }
+
+/* ——— Pantalla completa / escritorio ——— */
+html, body.studio-full {
+  width: 100vw;
+  height: 100vh;
+  height: 100dvh;
+  max-width: none;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+}
+body.studio-full.studio-fs-active .top {
+  /* barra más compacta en fullscreen */
+  padding: 6px 10px;
+}
+body.studio-full .workbench {
+  flex: 1 1 auto;
+  width: 100%;
+  height: auto;
+  min-height: 0;
+}
+/* Ocultar scroll de página; solo paneles internos */
+body.studio-full {
+  position: fixed;
+  inset: 0;
+}

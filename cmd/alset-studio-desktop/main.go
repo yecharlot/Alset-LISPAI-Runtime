@@ -92,15 +92,53 @@ func httpHostPort(raw string) string {
 	return u.Host
 }
 
+// openSystemBrowser prefiere Chromium/Chrome/Edge en modo app + maximizado
+// (experiencia casi a pantalla completa, sin pestañas del navegador).
 func openSystemBrowser(url string) error {
+	candidates := chromeAppCommands(url)
+	for _, c := range candidates {
+		if err := c.Start(); err == nil {
+			log.Println("UI en modo app:", c.Path)
+			return nil
+		}
+	}
 	var cmd *exec.Cmd
 	switch runtime.GOOS {
 	case "windows":
 		cmd = exec.Command("rundll32", "url.dll,FileProtocolHandler", url)
 	case "darwin":
+		cmd = exec.Command("open", "-a", "Google Chrome", "--args", "--app="+url, "--start-maximized")
+		if err := cmd.Start(); err == nil {
+			return nil
+		}
 		cmd = exec.Command("open", url)
 	default:
 		cmd = exec.Command("xdg-open", url)
 	}
 	return cmd.Start()
+}
+
+func chromeAppCommands(url string) []*exec.Cmd {
+	args := []string{"--app=" + url, "--start-maximized", "--start-fullscreen"}
+	names := []string{}
+	switch runtime.GOOS {
+	case "windows":
+		names = []string{
+			`C:\Program Files\Google\Chrome\Application\chrome.exe`,
+			`C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe`,
+		}
+	case "darwin":
+		return nil // se maneja en openSystemBrowser
+	default:
+		names = []string{
+			"google-chrome", "google-chrome-stable", "chromium", "chromium-browser",
+			"microsoft-edge", "brave-browser",
+		}
+	}
+	var out []*exec.Cmd
+	for _, n := range names {
+		c := exec.Command(n, args...)
+		out = append(out, c)
+	}
+	return out
 }

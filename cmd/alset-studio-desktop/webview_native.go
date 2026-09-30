@@ -15,9 +15,24 @@ func openWebView(url string) bool {
 	}
 	defer w.Destroy()
 	w.SetTitle("Alset Studio")
-	w.SetSize(1280, 840, webview.HintNone)
+	// Pantalla grande / maximizada
+	w.SetSize(1920, 1080, webview.HintMax)
 	w.Navigate(url)
-	log.Println("webview nativo activo")
+	// Pedir fullscreen real del documento cuando cargue
+	w.Init(`
+(function(){
+  function goFS(){
+    try {
+      var el = document.documentElement;
+      if (el.requestFullscreen) el.requestFullscreen();
+      else if (el.webkitRequestFullscreen) el.webkitRequestFullscreen();
+    } catch (e) {}
+  }
+  if (document.readyState === 'complete') setTimeout(goFS, 300);
+  else window.addEventListener('load', function(){ setTimeout(goFS, 300); });
+})();
+`)
+	log.Println("webview nativo maximizado / fullscreen")
 	w.Run()
 	return true
 }

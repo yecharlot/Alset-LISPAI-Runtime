@@ -647,3 +647,17 @@ export function bootBuilder() {
   log('Desplegar PWA = escribe /apps/<nombre>/ y abre la app final.');
   log('LispAI (panel derecho) = lógica declarativa; Backend = /v1/health /v1/data /v1/auth/login');
 }
+
+
+  const btnFs = document.getElementById('btn-fullscreen');
+  if (btnFs) btnFs.addEventListener('click', () => {
+    const el = document.documentElement;
+    if (!document.fullscreenElement) {
+      (el.requestFullscreen || el.webkitRequestFullscreen || el.msRequestFullscreen || (()=>{})).call(el);
+    } else {
+      (document.exitFullscreen || document.webkitExitFullscreen || (()=>{})).call(document);
+    }
+  });
+  window.addEventListener('keydown', (e) => {
+    if (e.key === 'F11') { /* browser handles */ }
+  });
