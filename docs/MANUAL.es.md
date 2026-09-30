@@ -204,3 +204,22 @@ curl -s -X POST http://127.0.0.1:5177/api/pulse \
   -H "Content-Type: application/json" \
   -d '{"key":"media","state":{"src":"https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4"},"text":"nuevo video"}'
 ```
+
+
+## 12. WebRTC, Streaming Hub y escritorio
+
+### Cámara WebRTC
+Componente **webrtc-camera**: activa/detiene la cámara del dispositivo. En producción usa HTTPS (o localhost).
+
+### Alset Streaming Hub
+Componente **stream-hub**: botones Ver / Publicar / Director hacia el hub multi-cámara ([AlsetStreamingHub](https://github.com/yecharlot/AlsetStreamingHub)).
+
+### UI moderna
+`chip`, `avatar`, `divider`, `skeleton`, `empty-state`, `surface` (elevated).
+
+### Electron
+```bash
+go build -o alset-studio ./cmd/alset-studio
+cd desktop && npm i
+ALSET_STUDIO_BIN=../alset-studio ALSET_STUDIO_WEB=../web npm start
+```

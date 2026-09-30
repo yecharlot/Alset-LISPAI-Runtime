@@ -1349,25 +1349,29 @@
         const v = document.createElement('video');
         v.className = 'rt-video';
         v.controls = p.controls !== false && p.controls !== 'false';
-        if (p.autoplay === true || p.autoplay === 'true') {
-          v.autoplay = true;
-          v.muted = true; // autoplay policies
-        }
-        if (p.loop === true || p.loop === 'true') v.loop = true;
-        if (p.poster) v.poster = p.poster;
+        v.preload = p.preload || 'metadata'; // ligero: no descarga el archivo entero
         v.playsInline = true;
         v.setAttribute('playsinline', '');
-        if (p.height) v.style.maxHeight = (typeof p.height === 'number' ? p.height + 'px' : p.height);
-        else v.style.maxHeight = '240px';
-        v.style.width = '100%';
-        v.style.borderRadius = '12px';
-        v.style.background = '#000';
-        if (src) {
-          // HLS-ish: if .m3u8 and Hls not present, still set src (Safari native)
-          v.src = src;
-        } else {
-          wrap.appendChild(el('div', 'rt-muted', 'Video: indica src o url'));
+        v.setAttribute('webkit-playsinline', '');
+        if (p.autoplay === true || p.autoplay === 'true') {
+          v.autoplay = true;
+          v.muted = true;
         }
+        if (p.muted === true || p.muted === 'true') v.muted = true;
+        if (p.loop === true || p.loop === 'true') v.loop = true;
+        if (p.poster) v.poster = p.poster;
+        const maxH = p.height != null ? (typeof p.height === 'number' ? p.height + 'px' : p.height) : '240px';
+        v.style.cssText = 'width:100%;max-height:' + maxH + ';border-radius:12px;background:#000;display:block';
+        if (src) {
+          // Lazy: solo asignar src cuando el nodo es visible
+          const apply = () => { if (!v.src) v.src = src; };
+          if (typeof IntersectionObserver !== 'undefined') {
+            const io = new IntersectionObserver((ents) => {
+              if (ents.some((e) => e.isIntersecting)) { apply(); io.disconnect(); }
+            }, { rootMargin: '80px' });
+            setTimeout(() => io.observe(v), 0);
+          } else apply();
+        } else wrap.appendChild(el('div', 'rt-muted', 'Video: indica src o url'));
         wrap.appendChild(v);
         break;
       }
@@ -1405,13 +1409,22 @@
         iframe.style.border = '0';
         iframe.loading = 'lazy';
         iframe.referrerPolicy = 'no-referrer-when-downgrade';
-        iframe.src =
+        iframe.style.cssText = 'width:100%;height:' + h + 'px;border:0;background:#111';
+        const mapUrl =
           'https://www.openstreetmap.org/export/embed.html?bbox=' +
           bbox +
           '&layer=mapnik&marker=' +
           lat +
           '%2C' +
           lng;
+        // No cargar OSM hasta que el mapa entre en viewport (evita congelar al abrir la app)
+        const bootMap = () => { if (!iframe.src) iframe.src = mapUrl; };
+        if (typeof IntersectionObserver !== 'undefined') {
+          const io = new IntersectionObserver((ents) => {
+            if (ents.some((e) => e.isIntersecting)) { bootMap(); io.disconnect(); }
+          }, { rootMargin: '100px' });
+          setTimeout(() => io.observe(wrap), 0);
+        } else bootMap();
         wrap.appendChild(iframe);
         const link = document.createElement('a');
         link.className = 'rt-muted';
@@ -1423,6 +1436,151 @@
         link.style.padding = '6px 4px';
         link.style.fontSize = '11px';
         wrap.appendChild(link);
+        break;
+      }
+
+      case 'webrtc-camera':
+      case 'camera': {
+        addClass(wrap, 'rt-card', 'rt-webrtc');
+        const v = document.createElement('video');
+        v.className = 'rt-video';
+        v.muted = true;
+        v.playsInline = true;
+        v.autoplay = true;
+        v.style.cssText = 'width:100%;max-height:' + (p.height || 220) + 'px;border-radius:12px;background:#000';
+        wrap.appendChild(v);
+        const st = el('div', 'rt-muted', 'Cámara local (WebRTC getUserMedia)');
+        wrap.appendChild(st);
+        const start = el('button', 'rt-btn', p.buttonText || 'Activar cámara');
+        start.type = 'button';
+        let stream = null;
+        start.onclick = async () => {
+          try {
+            if (stream) {
+              stream.getTracks().forEach((t) => t.stop());
+              stream = null;
+              v.srcObject = null;
+              st.textContent = 'Cámara detenida';
+              start.textContent = p.buttonText || 'Activar cámara';
+              return;
+            }
+            if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+              st.textContent = 'getUserMedia no disponible (HTTPS o localhost)';
+              return;
+            }
+            stream = await navigator.mediaDevices.getUserMedia({
+              video: p.facing === 'user' ? { facingMode: 'user' } : { facingMode: { ideal: 'environment' }, width: { ideal: 1280 } },
+              audio: p.audio === true || p.audio === 'true',
+            });
+            v.srcObject = stream;
+            st.textContent = 'En vivo · toca de nuevo para detener';
+            start.textContent = 'Detener';
+            log && log('webrtc camera on');
+          } catch (e) {
+            st.textContent = String(e.message || e);
+          }
+        };
+        wrap.appendChild(start);
+        if (p.auto === true || p.auto === 'true') setTimeout(() => start.click(), 100);
+        break;
+      }
+      case 'stream-hub':
+      case 'alset-stream': {
+        // Integración Alset Streaming Hub (publish / watch / health)
+        const base = (p.hubUrl || p.url || 'https://alset-streaming-hub.lhmolam-877.workers.dev').replace(/\/$/, '');
+        const matchId = p.matchId || p.match || 'partido-demo';
+        const role = p.role || 'watch'; // watch | publish | director
+        addClass(wrap, 'rt-card', 'rt-stream-hub');
+        wrap.appendChild(el('div', 'rt-muted', 'Alset Streaming Hub · ' + matchId));
+        const row = el('div', 'rt-row');
+        const open = (path) => {
+          const u = base + path;
+          window.open(u, '_blank', 'noopener');
+        };
+        const b1 = el('button', 'rt-btn', 'Ver');
+        b1.type = 'button';
+        b1.onclick = () => open('/watch.html?match=' + encodeURIComponent(matchId) + (p.ticket ? '&ticket=' + encodeURIComponent(p.ticket) : ''));
+        const b2 = el('button', 'rt-btn', 'Publicar');
+        b2.type = 'button';
+        b2.style.background = '#22d3ee';
+        b2.onclick = () => open('/publish.html?match=' + encodeURIComponent(matchId) + '&label=' + encodeURIComponent(p.label || 'Cam1'));
+        const b3 = el('button', 'rt-btn', 'Director');
+        b3.type = 'button';
+        b3.style.background = '#a3e635';
+        b3.style.color = '#111';
+        b3.onclick = () => open('/director.html?match=' + encodeURIComponent(matchId));
+        row.appendChild(b1);
+        row.appendChild(b2);
+        row.appendChild(b3);
+        wrap.appendChild(row);
+        const health = el('div', 'rt-muted', '…');
+        wrap.appendChild(health);
+        fetch(base + '/api/health').then((r) => r.json()).then((j) => {
+          health.textContent = j.ok ? 'Hub OK' : JSON.stringify(j);
+          if (ctx.setState) ctx.setState(p.state || 'streamHub', j);
+        }).catch((e) => { health.textContent = 'Hub: ' + (e.message || 'sin red'); });
+        if (p.embed === true || p.embed === 'true') {
+          const ifr = document.createElement('iframe');
+          ifr.title = 'stream-hub';
+          ifr.style.cssText = 'width:100%;height:' + (p.height || 280) + 'px;border:0;border-radius:12px;margin-top:8px;background:#000';
+          ifr.loading = 'lazy';
+          ifr.allow = 'camera;microphone;autoplay;fullscreen';
+          ifr.src = base + '/watch.html?match=' + encodeURIComponent(matchId);
+          wrap.appendChild(ifr);
+        }
+        break;
+      }
+      case 'chip': {
+        const s = el('span', 'rt-chip', p.text || 'chip');
+        if (p.color) s.style.borderColor = colorToken(p.color) || p.color;
+        wrap.appendChild(s);
+        break;
+      }
+      case 'avatar': {
+        const a = el('div', 'rt-avatar', (p.text || p.name || 'A').slice(0, 1).toUpperCase());
+        if (p.src) {
+          a.textContent = '';
+          const img = document.createElement('img');
+          img.src = p.src;
+          img.alt = '';
+          img.style.cssText = 'width:100%;height:100%;object-fit:cover;border-radius:inherit';
+          a.appendChild(img);
+        }
+        if (p.size) {
+          a.style.width = a.style.height = Number(p.size) + 'px';
+          a.style.fontSize = Math.floor(Number(p.size) / 2.4) + 'px';
+        }
+        wrap.appendChild(a);
+        break;
+      }
+      case 'divider': {
+        const d = el('div', 'rt-divider', '');
+        wrap.appendChild(d);
+        break;
+      }
+      case 'skeleton': {
+        const sk = el('div', 'rt-skeleton', '');
+        sk.style.height = (p.height || 48) + 'px';
+        wrap.appendChild(sk);
+        break;
+      }
+      case 'empty-state': {
+        addClass(wrap, 'rt-empty');
+        wrap.appendChild(el('div', 'rt-empty-icon', p.icon || '◇'));
+        wrap.appendChild(el('div', 'rt-muted', p.text || 'Sin contenido'));
+        if (p.action) {
+          const b = el('button', 'rt-btn', p.actionText || 'Acción');
+          b.type = 'button';
+          b.onclick = () => { ctx.emit && ctx.emit('action', { action: p.action }); };
+          wrap.appendChild(b);
+        }
+        break;
+      }
+      case 'surface': {
+        addClass(wrap, 'rt-surface');
+        if (p.variant === 'elevated') addClass(wrap, 'rt-surface-elevated');
+        if (p.pad) wrap.style.padding = Number(p.pad) + 'px';
+        kids(wrap);
         break;
       }
       case 'state':
@@ -1445,7 +1603,7 @@
     if (prev) prev.remove();
     const s = doc.createElement('style');
     s.id = 'alset-rt-css';
-    s.setAttribute('data-v', '8');
+    s.setAttribute('data-v', '9');
     s.textContent = `
 .rt-frame{margin:0 auto;border:1px solid ${THEME.line};border-radius:20px;background:#0a0d12;overflow:hidden;position:relative;touch-action:pan-y;isolation:isolate;contain:layout style paint}
 .rt-label{font-size:10px;color:${THEME.muted};padding:8px 12px;border-bottom:1px solid ${THEME.line};flex-shrink:0}

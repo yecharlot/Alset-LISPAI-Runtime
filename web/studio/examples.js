@@ -1038,6 +1038,58 @@ function demoMediaMapShell() {
 }
 
 
+
+function demoWebRTC() {
+  const root = col(12, 12);
+  root.children.push(title('WebRTC local', 18));
+  root.children.push(muted('Cámara del dispositivo · detener libera el track'));
+  root.children.push(createNode('chip', { text: 'getUserMedia', color: 'primary' }));
+  root.children.push(createNode('webrtc-camera', { height: 220, audio: false }));
+  root.children.push(createNode('surface', { variant: 'elevated', pad: 12 }));
+  root.children[root.children.length - 1].children.push(muted('Requiere HTTPS o localhost'));
+  return [root];
+}
+
+function demoStreamHub() {
+  const root = col(12, 12);
+  root.children.push(title('Alset Streaming Hub', 18));
+  root.children.push(muted('Ver · publicar · director (WebRTC multi-cámara)'));
+  root.children.push(createNode('stream-hub', {
+    hubUrl: 'https://alset-streaming-hub.lhmolam-877.workers.dev',
+    matchId: 'partido-demo',
+    label: 'Tribuna',
+  }));
+  root.children.push(createNode('divider', {}));
+  root.children.push(createNode('avatar', { text: 'S', size: 48 }));
+  root.children.push(createNode('text', { text: 'Genes / Studio pueden sondear /api/health y salas del hub.', size: 12, color: 'muted' }));
+  return [root];
+}
+
+function demoLiveStudio() {
+  const tabs = createNode('bottom-tabs', {
+    tabs: 'Cámara,Hub,Mapa,Chat',
+    icons: '◎,▶,⌖,✉',
+    state: 'mainTab',
+  });
+  const cam = col(10, 12);
+  cam.children.push(title('Producción', 16));
+  cam.children.push(createNode('webrtc-camera', { height: 200 }));
+  cam.children.push(createNode('chip', { text: 'local' }));
+  const hub = col(10, 12);
+  hub.children.push(title('Hub en vivo', 16));
+  hub.children.push(createNode('stream-hub', { matchId: 'partido-demo', label: 'Cam-A' }));
+  const map = col(10, 12);
+  map.children.push(title('Venue', 16));
+  map.children.push(createNode('map', { lat: 23.1136, lng: -82.3666, height: 200, label: 'Estadio' }));
+  const chat = col(10, 12);
+  chat.children.push(title('Pulse / mesh', 16));
+  chat.children.push(createNode('pulse-consumer', { url: '/api/pulse', keys: 'live', state: 'pulseData' }));
+  chat.children.push(createNode('mesh-peers', { name: 'live-studio', state: 'peers' }));
+  tabs.children.push(cam, hub, map, chat);
+  return [tabs];
+}
+
+
 export const EXAMPLES = [
   // Marketing
   { id: 'landing', name: 'Landing moderna', blurb: 'Hero + CTA + métrica reactiva', tags: ['marketing', 'hero'], build: landing },
@@ -1094,4 +1146,7 @@ export const EXAMPLES = [
   { id: 'demo-pulse-media', name: 'Media por pulsos', blurb: 'Pulse key=media + video', tags: ['media', 'pulse'], build: demoPulseMedia },
   { id: 'demo-map', name: 'Explorar mapa', blurb: 'OSM embebido Habana · Guantánamo', tags: ['map'], build: demoMapExplore },
   { id: 'demo-media-shell', name: 'Shell multimedia', blurb: 'Tabs video·audio·mapa·pulse', tags: ['media', 'pro'], build: demoMediaMapShell },
+  { id: 'demo-webrtc', name: 'WebRTC cámara', blurb: 'getUserMedia local optimizado', tags: ['webrtc'], build: demoWebRTC },
+  { id: 'demo-stream-hub', name: 'Alset Streaming Hub', blurb: 'Ver/publicar/director multi-cámara', tags: ['webrtc', 'hub'], build: demoStreamHub },
+  { id: 'demo-live-studio', name: 'Live Studio', blurb: 'Cámara + Hub + mapa + pulse', tags: ['webrtc', 'pro'], build: demoLiveStudio },
 ];

@@ -81,6 +81,17 @@ export const CATALOG = [
     { type: 'mesh-peers', label: 'Mesh peers', defaults: { name: 'mi-app', state: 'peers' } },
     { type: 'architecture', label: 'Clean layer', defaults: { layer: 'domain', pattern: 'repository' } },
   ]},
+
+  { group: 'WebRTC · Streaming Hub', items: [
+    { type: 'webrtc-camera', label: 'Cámara WebRTC', defaults: { height: 220, audio: false, facing: 'environment' } },
+    { type: 'stream-hub', label: 'Alset Stream Hub', defaults: { hubUrl: 'https://alset-streaming-hub.lhmolam-877.workers.dev', matchId: 'partido-demo', role: 'watch', label: 'Cam1' } },
+    { type: 'chip', label: 'Chip', defaults: { text: 'en vivo', color: 'primary' } },
+    { type: 'avatar', label: 'Avatar', defaults: { text: 'A', size: 44 } },
+    { type: 'divider', label: 'Divisor', defaults: {} },
+    { type: 'skeleton', label: 'Skeleton', defaults: { height: 56 } },
+    { type: 'empty-state', label: 'Empty state', defaults: { text: 'Nada por aquí', icon: '◇' } },
+    { type: 'surface', label: 'Surface', defaults: { variant: 'elevated', pad: 14 }, container: true },
+  ]},
   { group: 'Alset-JS · Chronos', items: [
     { type: 'icon', label: 'Icon', defaults: { name: 'pulse', size: 24, color: 'primary' } },
     { type: 'fab', label: 'FAB flotante', defaults: { text: '+', action: 'add' } },

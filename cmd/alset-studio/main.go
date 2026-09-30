@@ -173,7 +173,7 @@ func main() {
 		_ = os.WriteFile(filepath.Join(appDir, "manifest.webmanifest"), []byte(manifest), 0o644)
 
 		sw := `const C='alset-pwa-v4';
-self.addEventListener('install',e=>{e.waitUntil(caches.open(C).then(c=>c.addAll(['./','./index.html','./app.alset.json','./manifest.webmanifest','./app-runtime.js?v=8','./mininode.js'])));self.skipWaiting()});
+self.addEventListener('install',e=>{e.waitUntil(caches.open(C).then(c=>c.addAll(['./','./index.html','./app.alset.json','./manifest.webmanifest','./app-runtime.js?v=9','./mininode.js'])));self.skipWaiting()});
 self.addEventListener('activate',e=>e.waitUntil(self.clients.claim()));
 self.addEventListener('fetch',e=>{e.respondWith(caches.match(e.request).then(h=>h||fetch(e.request)))});`
 		_ = os.WriteFile(filepath.Join(appDir, "sw.js"), []byte(sw), 0o644)
@@ -203,7 +203,7 @@ html,body{margin:0;width:100%%;height:100%%;height:100dvh;background:#0b0e14;col
 #mount > *{width:100%%!important;height:100%%!important;max-width:100%%!important;border:0!important;border-radius:0!important}
 </style>
 <script src="mininode.js"></script>
-<script src="app-runtime.js?v=8"></script>
+<script src="app-runtime.js?v=9"></script>
 </head><body>
 <div id="mount" role="main"></div>
 <script>
