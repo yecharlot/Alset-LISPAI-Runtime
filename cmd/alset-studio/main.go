@@ -267,6 +267,148 @@ if('serviceWorker' in navigator){
 		})
 	})
 
+	
+	// SSE pulse bus (Studio lite — genes/vistas por key)
+	type pulseMsg struct {
+		Key   string         `json:"key"`
+		View  string         `json:"view,omitempty"`
+		State map[string]any `json:"state,omitempty"`
+		At    string         `json:"at"`
+		Text  string         `json:"text,omitempty"`
+	}
+	var (
+		pulseMu   sync.Mutex
+		pulseSubs = map[chan pulseMsg]struct{}{}
+		pulseLast pulseMsg
+	)
+	publishPulse := func(m pulseMsg) {
+		pulseMu.Lock()
+		pulseLast = m
+		for ch := range pulseSubs {
+			select {
+			case ch <- m:
+			default:
+			}
+		}
+		pulseMu.Unlock()
+	}
+	mux.HandleFunc("/api/pulse", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodPost {
+			var body pulseMsg
+			if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+				writeJSONStatus(w, 400, map[string]any{"error": err.Error()})
+				return
+			}
+			if body.At == "" {
+				body.At = time.Now().UTC().Format(time.RFC3339)
+			}
+			publishPulse(body)
+			writeJSON(w, map[string]any{"ok": true, "published": body})
+			return
+		}
+		// GET: last snapshot or SSE if Accept text/event-stream
+		if strings.Contains(r.Header.Get("Accept"), "text/event-stream") {
+			flusher, ok := w.(http.Flusher)
+			if !ok {
+				http.Error(w, "no flush", 500)
+				return
+			}
+			w.Header().Set("Content-Type", "text/event-stream")
+			w.Header().Set("Cache-Control", "no-cache")
+			w.Header().Set("Connection", "keep-alive")
+			ch := make(chan pulseMsg, 8)
+			pulseMu.Lock()
+			pulseSubs[ch] = struct{}{}
+			last := pulseLast
+			pulseMu.Unlock()
+			defer func() {
+				pulseMu.Lock()
+				delete(pulseSubs, ch)
+				pulseMu.Unlock()
+				close(ch)
+			}()
+			if last.At != "" {
+				b, _ := json.Marshal(last)
+				fmt.Fprintf(w, "data: %s\n\n", b)
+				flusher.Flush()
+			}
+			ticker := time.NewTicker(15 * time.Second)
+			defer ticker.Stop()
+			ctx := r.Context()
+			for {
+				select {
+				case <-ctx.Done():
+					return
+				case m := <-ch:
+					b, _ := json.Marshal(m)
+					fmt.Fprintf(w, "data: %s\n\n", b)
+					flusher.Flush()
+				case <-ticker.C:
+					fmt.Fprintf(w, ": ping\n\n")
+					flusher.Flush()
+				}
+			}
+		}
+		pulseMu.Lock()
+		last := pulseLast
+		pulseMu.Unlock()
+		writeJSON(w, map[string]any{"ok": true, "last": last, "subs": len(pulseSubs)})
+	})
+
+	// MCP-lite: tools discovery for external AI models (optional in apps)
+	mux.HandleFunc("/mcp/tools", func(w http.ResponseWriter, r *http.Request) {
+		writeJSON(w, map[string]any{
+			"ok": true,
+			"protocol": "alset-mcp-lite",
+			"tools": []map[string]any{
+				{"name": "list_apps", "description": "Lista apps desplegadas en Studio", "input": map[string]any{}},
+				{"name": "get_tree", "description": "Obtiene el árbol de nodos de una app", "input": map[string]any{"app": "string"}},
+				{"name": "pulse_publish", "description": "Publica un mensaje al bus /api/pulse", "input": map[string]any{"key": "string", "state": "object"}},
+				{"name": "rest_proxy", "description": "Proxy GET/POST a /v1/data", "input": map[string]any{"method": "GET|POST", "body": "object"}},
+			},
+		})
+	})
+	mux.HandleFunc("/mcp/call", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			http.Error(w, "POST only", 405)
+			return
+		}
+		var body struct {
+			Tool string         `json:"tool"`
+			Args map[string]any `json:"args"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+			writeJSONStatus(w, 400, map[string]any{"error": err.Error()})
+			return
+		}
+		switch body.Tool {
+		case "list_apps":
+			ents, _ := os.ReadDir(apps)
+			names := []string{}
+			for _, e := range ents {
+				if e.IsDir() {
+					names = append(names, e.Name())
+				}
+			}
+			writeJSON(w, map[string]any{"ok": true, "apps": names})
+		case "pulse_publish":
+			m := pulseMsg{Key: fmt.Sprint(body.Args["key"]), At: time.Now().UTC().Format(time.RFC3339)}
+			if st, ok := body.Args["state"].(map[string]any); ok {
+				m.State = st
+			}
+			if m.Key == "" {
+				m.Key = "studio"
+			}
+			publishPulse(m)
+			writeJSON(w, map[string]any{"ok": true, "published": m})
+		case "rest_proxy":
+			writeJSON(w, map[string]any{"ok": true, "hint": "use /v1/data directly from the app rest-consumer"})
+		default:
+			writeJSONStatus(w, 404, map[string]any{"error": "unknown tool", "tool": body.Tool})
+		}
+	})
+
+
 	mux.Handle("/apps/", http.StripPrefix("/apps/", http.FileServer(http.Dir(apps))))
 	mux.Handle("/", http.FileServer(http.Dir(root)))
 

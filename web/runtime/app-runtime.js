@@ -209,6 +209,12 @@
     const wrap = el('div', 'rt-node');
     wrap.setAttribute('data-node-id', n.id || '');
     wrap.setAttribute('data-type', n.type);
+    const nodeKey = p.key || p.agentKey || n.id || '';
+    if (nodeKey) {
+      wrap.setAttribute('data-key', String(nodeKey));
+      ctx.keyIndex = ctx.keyIndex || {};
+      ctx.keyIndex[String(nodeKey)] = { id: n.id, type: n.type, props: p };
+    }
     if (ctx.selectedId && n.id === ctx.selectedId) addClass(wrap, 'rt-selected');
     applyLayout(wrap, p, deviceId, ctx.deviceWidth);
 
@@ -462,27 +468,85 @@
         } else wrap.appendChild(el('div', 'rt-muted', '(imagen)'));
         break;
       }
-      case 'api': {
-        addClass(wrap, 'rt-card');
-        wrap.appendChild(el('div', 'rt-muted', 'GET ' + (p.url || '') + ' → ' + (p.state || 'apiData')));
-        if (p.auto && p.url && !ctx._apiOnce?.[n.id || p.url]) {
-          ctx._apiOnce = ctx._apiOnce || {};
-          ctx._apiOnce[n.id || p.url] = true;
-          fetch(p.url)
-            .then((r) => r.json())
-            .then((j) => {
-              if (p.state && ctx.setState) ctx.setState(p.state, j);
-              const pre = el('pre', 'rt-pre', JSON.stringify(j, null, 2));
-              wrap.appendChild(pre);
-              log && log('api ok');
+      case 'api':
+      case 'api-post':
+      case 'rest-consumer':
+      case 'api-rest': {
+        const method = String(p.method || (n.type === 'api-post' ? 'POST' : 'GET')).toUpperCase();
+        const urlBase = p.url || '/v1/data';
+        const bind = p.bind || p.state || 'apiData';
+        const path = p.bindPath || p.path || '';
+        const showRaw = p.showRaw !== false;
+        addClass(wrap, 'rt-card', 'rt-rest');
+        wrap.appendChild(el('div', 'rt-muted', method + ' ' + urlBase + (path ? ' → ' + bind + '.' + path : ' → ' + bind)));
+        const run = () => {
+          if (ctx.setState) ctx.setState(p.loadingKey || '_loading_' + bind, true);
+          let url = urlBase;
+          // Query params from state object or prop
+          const q = p.queryState && ctx.state?.[p.queryState];
+          if (q && typeof q === 'object') {
+            const qs = new URLSearchParams();
+            Object.keys(q).forEach((k) => { if (q[k] != null && q[k] !== '') qs.set(k, String(q[k])); });
+            const s = qs.toString();
+            if (s) url += (url.includes('?') ? '&' : '?') + s;
+          } else if (p.query) {
+            url += (url.includes('?') ? '&' : '?') + String(p.query);
+          }
+          const opts = { method, headers: { Accept: 'application/json' } };
+          if (p.tokenState && ctx.state?.[p.tokenState]) {
+            opts.headers.Authorization = 'Bearer ' + ctx.state[p.tokenState];
+          } else if (p.token) opts.headers.Authorization = 'Bearer ' + p.token;
+          if (method === 'POST' || method === 'PUT' || method === 'PATCH' || method === 'DELETE') {
+            let body = p.body != null ? p.body : (p.bodyState ? ctx.state?.[p.bodyState] : null);
+            if (typeof body === 'string') {
+              try { body = JSON.parse(body); } catch (_) {}
+            }
+            if (body != null && method !== 'GET') {
+              opts.headers['Content-Type'] = 'application/json';
+              opts.body = typeof body === 'string' ? body : JSON.stringify(body);
+            }
+          }
+          fetch(url, opts)
+            .then(async (r) => {
+              const text = await r.text();
+              let j;
+              try { j = JSON.parse(text); } catch (_) { j = { raw: text, status: r.status }; }
+              let data = j;
+              if (path) {
+                path.split('.').forEach((k) => { if (data && typeof data === 'object') data = data[k]; });
+              }
+              if (p.bindPath === 'items' && j && Array.isArray(j.items)) data = j.items;
+              if (ctx.setState) {
+                ctx.setState(bind, data);
+                ctx.setState(p.loadingKey || '_loading_' + bind, false);
+                if (p.statusState) ctx.setState(p.statusState, r.status);
+              }
+              log && log('rest ' + method + ' ' + r.status);
+              ctx.remount && ctx.remount();
             })
-            .catch((e) => wrap.appendChild(el('div', 'rt-muted', String(e.message || e))));
+            .catch((e) => {
+              if (ctx.setState) ctx.setState(p.loadingKey || '_loading_' + bind, false);
+              wrap.appendChild(el('div', 'rt-muted', String(e.message || e)));
+              log && log('rest err ' + e);
+            });
+        };
+        const b = el('button', 'rt-btn', p.buttonText || (method === 'GET' ? 'Cargar' : 'Enviar'));
+        b.type = 'button';
+        b.onclick = () => run();
+        wrap.appendChild(b);
+        const autoKey = n.id || urlBase + method;
+        if (p.auto && !ctx._apiOnce?.[autoKey]) {
+          ctx._apiOnce = ctx._apiOnce || {};
+          ctx._apiOnce[autoKey] = true;
+          setTimeout(run, 30);
+        }
+        if (showRaw && ctx.state?.[bind] != null) {
+          const val = ctx.state[bind];
+          if (Array.isArray(val)) wrap.appendChild(el('div', 'rt-muted', val.length + ' ítems en «' + bind + '»'));
+          else wrap.appendChild(el('pre', 'rt-pre', JSON.stringify(val, null, 2).slice(0, 800)));
         }
         break;
       }
-      case 'api-post':
-        wrap.appendChild(el('div', 'rt-muted', 'POST ' + (p.url || '/v1/data')));
-        break;
       case 'list': {
         const data = ctx.state?.[p.state];
         addClass(wrap, 'rt-card');
@@ -891,6 +955,288 @@
         kids(wrap);
         break;
       }
+
+      case 'carousel': {
+        const children = n.children || [];
+        let idx = Number(ctx.state?.[p.state || 'carouselIdx'] || 0) || 0;
+        if (idx < 0) idx = 0;
+        if (idx >= children.length) idx = Math.max(0, children.length - 1);
+        addClass(wrap, 'rt-carousel');
+        if (p.animated !== false) addClass(wrap, 'rt-carousel-anim');
+        const stage = el('div', 'rt-carousel-stage');
+        if (children[idx]) paintNode(stage, children[idx], ctx, depth + 1);
+        else stage.appendChild(el('div', 'rt-muted', 'Sin diapositivas'));
+        wrap.appendChild(stage);
+        const ctrl = el('div', 'rt-carousel-ctrl');
+        const prev = el('button', 'rt-btn', '‹');
+        prev.type = 'button';
+        prev.onclick = () => {
+          const next = (idx - 1 + Math.max(children.length, 1)) % Math.max(children.length, 1);
+          if (ctx.setState) ctx.setState(p.state || 'carouselIdx', next);
+          ctx.remount && ctx.remount();
+        };
+        const next = el('button', 'rt-btn', '›');
+        next.type = 'button';
+        next.onclick = () => {
+          const nidx = (idx + 1) % Math.max(children.length, 1);
+          if (ctx.setState) ctx.setState(p.state || 'carouselIdx', nidx);
+          ctx.remount && ctx.remount();
+        };
+        ctrl.appendChild(prev);
+        ctrl.appendChild(el('span', 'rt-muted', (idx + 1) + ' / ' + Math.max(children.length, 1)));
+        ctrl.appendChild(next);
+        wrap.appendChild(ctrl);
+        // autoplay
+        if (p.autoplay && children.length > 1 && !ctx._carouselTimer?.[n.id]) {
+          ctx._carouselTimer = ctx._carouselTimer || {};
+          ctx._carouselTimer[n.id] = true;
+          // one-shot schedule via remount cycle is enough for demo; avoid infinite timers in paint
+        }
+        break;
+      }
+      case 'loader':
+      case 'loading':
+      case 'load-indicator': {
+        const lk = p.state || p.loadingKey || '_loading';
+        const busy = !!ctx.state?.[lk] || p.active === true || p.active === 'true';
+        addClass(wrap, 'rt-loader-wrap');
+        if (busy) {
+          wrap.appendChild(el('div', 'rt-spinner', ''));
+          wrap.appendChild(el('div', 'rt-muted', p.text || 'Cargando…'));
+        } else if (p.showIdle) {
+          wrap.appendChild(el('div', 'rt-muted', p.idleText || 'Listo'));
+        }
+        break;
+      }
+      case 'progress':
+      case 'progress-bar': {
+        let v = Number(ctx.state?.[p.state] ?? p.value ?? 0);
+        if (Number.isNaN(v)) v = 0;
+        v = Math.max(0, Math.min(100, v));
+        addClass(wrap, 'rt-progress-wrap');
+        const bar = el('div', 'rt-progress-bar');
+        const fill = el('div', 'rt-progress-fill');
+        fill.style.width = v + '%';
+        bar.appendChild(fill);
+        wrap.appendChild(bar);
+        if (p.label !== false) wrap.appendChild(el('div', 'rt-muted', Math.round(v) + '%'));
+        break;
+      }
+      case 'file-browser':
+      case 'image-browser':
+      case 'file-picker': {
+        const isImg = n.type === 'image-browser' || p.accept === 'image/*' || p.images;
+        const input = document.createElement('input');
+        input.type = 'file';
+        input.className = 'rt-file';
+        if (isImg) input.accept = p.accept || 'image/*';
+        else if (p.accept) input.accept = p.accept;
+        if (p.multiple) input.multiple = true;
+        const preview = el('div', 'rt-file-preview');
+        const st = p.state || 'fileData';
+        input.onchange = () => {
+          const files = Array.from(input.files || []);
+          if (!files.length) return;
+          if (ctx.setState) ctx.setState(p.loadingKey || '_loading_file', true);
+          const readers = files.map(
+            (f) =>
+              new Promise((res) => {
+                const r = new FileReader();
+                r.onload = () => res({ name: f.name, type: f.type, size: f.size, dataUrl: r.result });
+                if (isImg || (f.type || '').startsWith('image/')) r.readAsDataURL(f);
+                else r.readAsText(f);
+              })
+          );
+          Promise.all(readers).then((arr) => {
+            if (ctx.setState) {
+              ctx.setState(st, p.multiple ? arr : arr[0]);
+              ctx.setState(p.loadingKey || '_loading_file', false);
+            }
+            preview.innerHTML = '';
+            arr.forEach((item) => {
+              if (item.dataUrl && String(item.dataUrl).startsWith('data:image')) {
+                const img = document.createElement('img');
+                img.src = item.dataUrl;
+                img.className = 'rt-file-img';
+                preview.appendChild(img);
+              } else {
+                preview.appendChild(el('div', 'rt-muted', item.name + ' (' + item.size + ' B)'));
+              }
+            });
+            log && log('file loaded ' + arr.length);
+            ctx.remount && ctx.remount();
+          });
+        };
+        wrap.appendChild(input);
+        wrap.appendChild(preview);
+        const existing = ctx.state?.[st];
+        if (existing && existing.dataUrl && String(existing.dataUrl).startsWith('data:image')) {
+          const img = document.createElement('img');
+          img.src = existing.dataUrl;
+          img.className = 'rt-file-img';
+          preview.appendChild(img);
+        }
+        break;
+      }
+      case 'pulse-consumer':
+      case 'pulse-server-consumer': {
+        const pulseUrl = p.url || p.pulseUrl || '/api/pulse';
+        const keys = String(p.keys || p.views || '')
+          .split(',')
+          .map((s) => s.trim())
+          .filter(Boolean);
+        const bind = p.state || 'pulseData';
+        addClass(wrap, 'rt-card', 'rt-pulse');
+        wrap.appendChild(el('div', 'rt-muted', 'Pulse → ' + pulseUrl + (keys.length ? ' keys: ' + keys.join(',') : '')));
+        const status = el('div', 'rt-muted', ctx.state?.[p.statusState || '_pulseStatus'] || 'idle');
+        wrap.appendChild(status);
+        const connect = () => {
+          if (ctx._pulseEs?.[n.id || pulseUrl]) return;
+          ctx._pulseEs = ctx._pulseEs || {};
+          try {
+            if (typeof EventSource !== 'undefined') {
+              const es = new EventSource(pulseUrl);
+              ctx._pulseEs[n.id || pulseUrl] = es;
+              if (ctx.setState) ctx.setState(p.statusState || '_pulseStatus', 'connected');
+              es.onmessage = (ev) => {
+                try {
+                  const msg = JSON.parse(ev.data);
+                  const k = msg.key || msg.view || msg.target;
+                  if (keys.length && k && keys.indexOf(String(k)) < 0) return;
+                  if (ctx.setState) {
+                    ctx.setState(bind, msg);
+                    if (k && msg.state) ctx.setState('view:' + k, msg.state);
+                  }
+                  log && log('pulse ' + (k || 'msg'));
+                  ctx.remount && ctx.remount();
+                } catch (e) {
+                  log && log('pulse parse');
+                }
+              };
+              es.onerror = () => {
+                if (ctx.setState) ctx.setState(p.statusState || '_pulseStatus', 'error/retry');
+              };
+            } else {
+              // poll fallback
+              const tick = () => {
+                fetch(pulseUrl)
+                  .then((r) => r.json())
+                  .then((j) => {
+                    if (ctx.setState) ctx.setState(bind, j);
+                    ctx.remount && ctx.remount();
+                  })
+                  .catch(() => {});
+              };
+              tick();
+              ctx._pulseEs[n.id || pulseUrl] = setInterval(tick, Number(p.interval) || 5000);
+            }
+          } catch (e) {
+            wrap.appendChild(el('div', 'rt-muted', String(e.message || e)));
+          }
+        };
+        const b = el('button', 'rt-btn', p.buttonText || 'Conectar pulse');
+        b.type = 'button';
+        b.onclick = () => connect();
+        wrap.appendChild(b);
+        if (p.auto) setTimeout(connect, 40);
+        if (ctx.state?.[bind]) {
+          wrap.appendChild(el('pre', 'rt-pre', JSON.stringify(ctx.state[bind], null, 2).slice(0, 600)));
+        }
+        break;
+      }
+      case 'view-agent': {
+        // Vista como agente: key, lifecycle, state bag, optional rootCID
+        const key = p.key || p.name || n.id || 'view';
+        addClass(wrap, 'rt-card', 'rt-view-agent');
+        const bag = ctx.state?.['agent:' + key] || {};
+        wrap.appendChild(el('div', 'rt-muted', 'Agente-vista «' + key + '»'));
+        if (p.rootCid || bag.rootCid) wrap.appendChild(el('div', 'rt-muted', 'RootCID ' + (p.rootCid || bag.rootCid)));
+        if (p.lifecycle) wrap.appendChild(el('div', 'rt-muted', 'ciclo: ' + p.lifecycle));
+        kids(wrap);
+        // register in agent registry
+        ctx.agents = ctx.agents || {};
+        ctx.agents[key] = { key, type: 'view', props: p, state: bag };
+        break;
+      }
+      case 'zyrion-filter': {
+        // Filtro ternario simple sobre lista en state
+        const src = p.source || p.state || 'apiData';
+        const out = p.out || p.bind || src + 'Filtered';
+        const field = p.field || 'score';
+        const mode = Number(p.mode ?? 1); // 0 follow, 1 matizar, 2 sink high
+        addClass(wrap, 'rt-card');
+        wrap.appendChild(el('div', 'rt-muted', 'Zyrion filter → ' + out + ' (modo ' + mode + ')'));
+        const run = () => {
+          const list = ctx.state?.[src];
+          if (!Array.isArray(list)) return;
+          const scored = list.map((item) => {
+            let s = 0;
+            if (item && typeof item === 'object') {
+              s = Number(item[field] ?? item.priority ?? 0) || 0;
+            }
+            // ternary: 0 low, 1 mid, 2 high absorb
+            let t = 0;
+            if (s >= 0.66) t = 2;
+            else if (s >= 0.33) t = 1;
+            return { item, t, s };
+          });
+          let result;
+          if (mode === 2) result = scored.filter((x) => x.t === 2).map((x) => x.item);
+          else if (mode === 0) result = scored.filter((x) => x.t === 0).map((x) => x.item);
+          else result = scored.filter((x) => x.t >= 1).map((x) => x.item);
+          if (ctx.setState) ctx.setState(out, result);
+          log && log('zyrion ' + result.length);
+          ctx.remount && ctx.remount();
+        };
+        const b = el('button', 'rt-btn', p.buttonText || 'Aplicar filtro');
+        b.type = 'button';
+        b.onclick = () => run();
+        wrap.appendChild(b);
+        if (p.auto && Array.isArray(ctx.state?.[src])) setTimeout(run, 20);
+        break;
+      }
+      case 'mcp-agent': {
+        addClass(wrap, 'rt-card');
+        wrap.appendChild(el('div', 'rt-muted', 'MCP agent → ' + (p.url || '/mcp/tools')));
+        wrap.appendChild(el('div', 'rt-muted', p.description || 'Expone herramientas de la app a modelos externos'));
+        const b = el('button', 'rt-btn', 'Listar tools');
+        b.type = 'button';
+        b.onclick = () => {
+          fetch(p.url || '/mcp/tools')
+            .then((r) => r.json())
+            .then((j) => {
+              if (ctx.setState) ctx.setState(p.state || 'mcpTools', j);
+              ctx.remount && ctx.remount();
+            })
+            .catch((e) => log && log(String(e)));
+        };
+        wrap.appendChild(b);
+        if (ctx.state?.[p.state || 'mcpTools']) {
+          wrap.appendChild(el('pre', 'rt-pre', JSON.stringify(ctx.state[p.state || 'mcpTools'], null, 2).slice(0, 500)));
+        }
+        break;
+      }
+      case 'nav-link': {
+        // Navegación interna list→detail usando key
+        const b = el('button', 'rt-btn', p.text || 'Ver detalle');
+        b.type = 'button';
+        b.onclick = () => {
+          const item = p.itemState ? ctx.state?.[p.itemState] : p.item;
+          if (ctx.setState) {
+            if (p.detailState) ctx.setState(p.detailState, item != null ? item : p.value);
+            if (p.routeState || p.route) ctx.setState(p.routeState || 'route', p.route || 'detail');
+            if (p.key) ctx.setState('focusKey', p.key);
+          }
+          ctx.remount && ctx.remount();
+        };
+        wrap.appendChild(b);
+        break;
+      }
+      case 'architecture': {
+        addClass(wrap, 'rt-muted');
+        wrap.textContent = 'Clean: ' + (p.layer || 'presentation') + (p.pattern ? ' · ' + p.pattern : '');
+        break;
+      }
       case 'state':
       case 'persist':
       case 'ipfs':
@@ -911,7 +1257,7 @@
     if (prev) prev.remove();
     const s = doc.createElement('style');
     s.id = 'alset-rt-css';
-    s.setAttribute('data-v', '5');
+    s.setAttribute('data-v', '6');
     s.textContent = `
 .rt-frame{margin:0 auto;border:1px solid ${THEME.line};border-radius:20px;background:#0a0d12;overflow:hidden;position:relative;touch-action:pan-y;isolation:isolate;contain:layout style paint}
 .rt-label{font-size:10px;color:${THEME.muted};padding:8px 12px;border-bottom:1px solid ${THEME.line};flex-shrink:0}
@@ -1004,6 +1350,22 @@
 .rt-shape-pill{border-radius:999px}
 .rt-shape-diamond{clip-path:polygon(50% 0,100% 50%,50% 100%,0 50%)}
 .rt-shape-hex{clip-path:polygon(25% 0,75% 0,100% 50%,75% 100%,25% 100%,0 50%)}
+
+
+.rt-carousel{display:flex;flex-direction:column;gap:8px;width:100%}
+.rt-carousel-stage{min-height:80px;border:1px solid ${THEME.line};border-radius:12px;padding:8px;overflow:hidden}
+.rt-carousel-anim .rt-carousel-stage{animation:rtSlide .35s ease}
+.rt-carousel-ctrl{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.rt-loader-wrap{display:flex;flex-direction:column;align-items:center;gap:8px;padding:12px}
+.rt-spinner{width:28px;height:28px;border:3px solid ${THEME.line};border-top-color:${THEME.primary};border-radius:50%;animation:rtSpin .7s linear infinite}
+@keyframes rtSpin{to{transform:rotate(360deg)}}
+.rt-progress-wrap{width:100%}
+.rt-progress-bar{height:8px;background:${THEME.line};border-radius:99px;overflow:hidden}
+.rt-progress-fill{height:100%;background:${THEME.primary};border-radius:99px;transition:width .25s ease}
+.rt-file{width:100%;font-size:12px;color:${THEME.muted}}
+.rt-file-img{max-width:100%;max-height:160px;border-radius:10px;margin-top:8px;display:block}
+.rt-rest .rt-btn,.rt-pulse .rt-btn{margin-top:8px}
+.rt-view-agent{border-left:3px solid ${THEME.primary}}
 
 .rt-gesture-hint{position:absolute;bottom:8px;left:8px;right:8px;font-size:10px;color:${THEME.muted};pointer-events:none;opacity:.7}
 `;

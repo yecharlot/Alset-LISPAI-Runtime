@@ -778,6 +778,43 @@ function twinPrismaMind() {
 }
 
 
+
+function demoRestPulse() {
+  const root = col(12, 12);
+  root.children.push(title('REST + Pulse + Detalle', 18));
+  root.children.push(muted('Consumer async → lazy · key · nav'));
+  root.children.push(createNode('loader', { state: '_loading_apiData', text: 'Sincronizando…' }));
+  root.children.push(createNode('progress', { state: 'progress', value: 25 }));
+  root.children.push(
+    createNode('rest-consumer', {
+      method: 'GET',
+      url: '/v1/data',
+      bind: 'apiData',
+      bindPath: 'items',
+      auto: true,
+      loadingKey: '_loading_apiData',
+      buttonText: 'GET /v1/data',
+    })
+  );
+  root.children.push(createNode('lazy-column', { state: 'apiData', height: 180, pageSize: 5, itemLabel: 'Ítem' }));
+  root.children.push(createNode('nav-link', { text: 'Abrir detalle del foco', route: 'detail', detailState: 'selected', routeState: 'route' }));
+  const car = createNode('carousel', { state: 'carouselIdx', animated: true });
+  car.children.push(createNode('card', { pad: 12 }));
+  car.children[0].children.push(title('Slide A', 16));
+  car.children.push(createNode('card', { pad: 12 }));
+  car.children[1].children.push(title('Slide B', 16));
+  car.children.push(createNode('card', { pad: 12 }));
+  car.children[2].children.push(title('Slide C', 16));
+  root.children.push(car);
+  root.children.push(createNode('image-browser', { state: 'imageData' }));
+  root.children.push(createNode('pulse-consumer', { url: '/api/pulse', keys: 'home,detail', state: 'pulseData' }));
+  root.children.push(createNode('mcp-agent', { url: '/mcp/tools' }));
+  const va = createNode('view-agent', { key: 'home', lifecycle: 'active' });
+  va.children.push(muted('Espacio direccionable key=home'));
+  root.children.push(va);
+  return [root];
+}
+
 export const EXAMPLES = [
   // Marketing
   { id: 'landing', name: 'Landing moderna', blurb: 'Hero + CTA + métrica reactiva', tags: ['marketing', 'hero'], build: landing },
@@ -824,4 +861,5 @@ export const EXAMPLES = [
   { id: 'twin-gestion-tati', name: 'Gestión La Tati', blurb: 'Gemela gestora: publicar·stock·vales', tags: ['twin', 'tati'], build: twinGestionTati },
   { id: 'twin-abaco', name: 'ÁbacoPhy', blurb: 'Gemela contable: inventario·facturas·nómina', tags: ['twin', 'abaco'], build: twinAbacoPhy },
   { id: 'twin-prisma', name: 'PrismaTec Mind', blurb: 'Gemela: Mind·Gen·LispAI·nodo', tags: ['twin', 'prisma'], build: twinPrismaMind },
+  { id: 'demo-rest-pulse', name: 'REST · Pulse · Carousel', blurb: 'API consumer, lazy bind, pulse, MCP', tags: ['pro', 'api'], build: demoRestPulse },
 ];

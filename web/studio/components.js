@@ -63,6 +63,21 @@ export const CATALOG = [
     { type: 'shape', label: 'Hexágono', defaults: { kind: 'hex', size: 72, from: '#a3e635', to: '#2dd4bf' } },
     { type: 'shape', label: 'Diamante', defaults: { kind: 'diamond', size: 64, color: 'secondary' } },
   ]},
+
+  { group: 'Datos · Red · Agentes', items: [
+    { type: 'carousel', label: 'Carousel', defaults: { state: 'carouselIdx', animated: true }, container: true },
+    { type: 'loader', label: 'Load indicator', defaults: { state: '_loading', text: 'Cargando…' } },
+    { type: 'progress', label: 'Progress bar', defaults: { state: 'progress', value: 40 } },
+    { type: 'file-browser', label: 'Browser archivos', defaults: { state: 'fileData', multiple: false } },
+    { type: 'image-browser', label: 'Browser imágenes', defaults: { state: 'imageData', accept: 'image/*' } },
+    { type: 'rest-consumer', label: 'API REST Consumer', defaults: { method: 'GET', url: '/v1/data', bind: 'apiData', bindPath: 'items', auto: true, buttonText: 'Cargar' } },
+    { type: 'pulse-consumer', label: 'Pulse Server Consumer', defaults: { url: '/api/pulse', keys: 'home,detail', state: 'pulseData', auto: false } },
+    { type: 'view-agent', label: 'Vista-agente', defaults: { key: 'home', lifecycle: 'mount' }, container: true },
+    { type: 'nav-link', label: 'Nav detalle', defaults: { text: 'Ver detalle', route: 'detail', detailState: 'selected', routeState: 'route' } },
+    { type: 'zyrion-filter', label: 'Zyrion filter', defaults: { source: 'apiData', out: 'apiFiltered', field: 'score', mode: 1 } },
+    { type: 'mcp-agent', label: 'MCP agent', defaults: { url: '/mcp/tools', state: 'mcpTools' } },
+    { type: 'architecture', label: 'Clean layer', defaults: { layer: 'domain', pattern: 'repository' } },
+  ]},
   { group: 'Alset-JS · Chronos', items: [
     { type: 'icon', label: 'Icon', defaults: { name: 'pulse', size: 24, color: 'primary' } },
     { type: 'fab', label: 'FAB flotante', defaults: { text: '+', action: 'add' } },
@@ -313,7 +328,7 @@ export function uid() { return 'n' + (_id++); }
 export function createNode(type, defaults = {}) {
   const meta = CATALOG.flatMap((g) => g.items).find((i) => i.type === type);
   const d = { ...(meta?.defaults || {}), ...defaults };
-  const container = meta?.container || ['column', 'row', 'card', 'form', 'anim-fade', 'anim-slide', 'anim-scale', 'auth-gate', 'gate', 'drawer', 'side-menu', 'tabs-shell', 'bottom-tabs', 'stack', 'gradient', 'gradient-image', 'glass', 'router', 'layer', 'animate'].includes(type);
+  const container = meta?.container || ['column', 'row', 'card', 'form', 'anim-fade', 'anim-slide', 'anim-scale', 'auth-gate', 'gate', 'drawer', 'side-menu', 'tabs-shell', 'bottom-tabs', 'stack', 'gradient', 'gradient-image', 'glass', 'router', 'layer', 'animate', 'carousel', 'view-agent'].includes(type);
   return {
     id: uid(),
     type,
