@@ -223,3 +223,15 @@ go build -o alset-studio ./cmd/alset-studio
 cd desktop && npm i
 ALSET_STUDIO_BIN=../alset-studio ALSET_STUDIO_WEB=../web npm start
 ```
+
+
+## 13. Escritorio en Go
+
+Ver **docs/DESKTOP_GO.md**. Resumen:
+
+```bash
+go build -o alset-studio-desktop ./cmd/alset-studio-desktop
+./alset-studio-desktop -dir web
+```
+
+Ventana nativa: `go build -tags webview ...` (CGO + WebKit/GTK).

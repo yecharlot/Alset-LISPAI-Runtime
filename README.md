@@ -4,6 +4,9 @@ No-code studio with **error sandbox**, drag-drop toolbox, multi-device preview (
 
 ```bash
 go run ./cmd/alset-studio -addr :5177 -dir web
+
+# Escritorio (Go, sin Electron)
+go build -o alset-studio-desktop ./cmd/alset-studio-desktop && ./alset-studio-desktop -dir web
 ```
 
 Open http://127.0.0.1:5177/
