@@ -1237,6 +1237,112 @@
         wrap.textContent = 'Clean: ' + (p.layer || 'presentation') + (p.pattern ? ' · ' + p.pattern : '');
         break;
       }
+
+      case 'mind-panel':
+      case 'mind-tick': {
+        addClass(wrap, 'rt-card');
+        wrap.appendChild(el('div', 'rt-muted', 'MiniNode Mind'));
+        const area = document.createElement('textarea');
+        area.className = 'rt-input';
+        area.rows = 2;
+        area.placeholder = 'Mensaje al latido…';
+        area.value = ctx.state?.[p.state || 'mindText'] || '';
+        area.oninput = () => { if (ctx.setState) ctx.setState(p.state || 'mindText', area.value); };
+        wrap.appendChild(area);
+        const out = el('div', 'rt-muted', ctx.state?.[p.out || 'mindVoice'] || '');
+        const b = el('button', 'rt-btn', 'Latido');
+        b.type = 'button';
+        b.onclick = async () => {
+          const text = area.value || ctx.state?.[p.state || 'mindText'] || '';
+          if (ctx.setState) ctx.setState(p.loadingKey || '_loading_mind', true);
+          try {
+            let voice;
+            if (p.local && window.AlsetMiniNode) {
+              voice = window.AlsetMiniNode.mindTick(text).voice;
+            } else {
+              const r = await fetch(p.url || '/api/mind/tick', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ text }),
+              });
+              const j = await r.json();
+              voice = j.voice || j.error || JSON.stringify(j);
+            }
+            if (ctx.setState) {
+              ctx.setState(p.out || 'mindVoice', voice);
+              ctx.setState(p.loadingKey || '_loading_mind', false);
+            }
+            out.textContent = voice;
+            ctx.remount && ctx.remount();
+          } catch (e) {
+            out.textContent = String(e.message || e);
+            if (ctx.setState) ctx.setState(p.loadingKey || '_loading_mind', false);
+          }
+        };
+        wrap.appendChild(b);
+        wrap.appendChild(out);
+        break;
+      }
+      case 'zyrion-panel': {
+        addClass(wrap, 'rt-card');
+        wrap.appendChild(el('div', 'rt-muted', 'Zyrion (env JSON)'));
+        const area = document.createElement('textarea');
+        area.className = 'rt-input';
+        area.rows = 3;
+        area.placeholder = '{"p53":0.2,"MDM2":0.8}';
+        area.value = ctx.state?.[p.state || 'zyrionEnv'] || '{"a":0.2,"b":0.8}';
+        wrap.appendChild(area);
+        const out = el('div', 'rt-muted', '');
+        const b = el('button', 'rt-btn', 'Evaluar');
+        b.type = 'button';
+        b.onclick = async () => {
+          let env = {};
+          try { env = JSON.parse(area.value); } catch (_) {}
+          const labels = { 0: 'SEGUIR', 1: 'MATIZAR', 2: 'SUMIDERO' };
+          let j;
+          if (p.local && window.AlsetMiniNode) j = window.AlsetMiniNode.evalZyrion(env, labels);
+          else {
+            const r = await fetch(p.url || '/api/zyrion', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ env, labels }),
+            });
+            j = await r.json();
+          }
+          out.textContent = (j.label || '') + ' (t=' + j.ternary + ')';
+          if (ctx.setState) ctx.setState(p.out || 'zyrionResult', j);
+        };
+        wrap.appendChild(b);
+        wrap.appendChild(out);
+        break;
+      }
+      case 'mesh-peers': {
+        addClass(wrap, 'rt-card');
+        wrap.appendChild(el('div', 'rt-muted', 'Mesh / gossip lite'));
+        const b = el('button', 'rt-btn', 'Anunciar + listar');
+        b.type = 'button';
+        b.onclick = async () => {
+          const name = p.name || ctx.state?.appName || 'app';
+          if (window.AlsetMiniNode) window.AlsetMiniNode.announce(name, p.payload || '');
+          await fetch('/api/mesh/announce', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ id: p.id || name, name, payload: p.payload || '' }),
+          }).catch(() => {});
+          const r = await fetch('/api/mesh/peers');
+          const j = await r.json();
+          if (ctx.setState) ctx.setState(p.state || 'peers', j.peers || []);
+          ctx.remount && ctx.remount();
+        };
+        wrap.appendChild(b);
+        const list = ctx.state?.[p.state || 'peers'];
+        if (Array.isArray(list)) {
+          list.forEach((peer) => {
+            wrap.appendChild(el('div', 'rt-list-item', (peer.name || peer.id || JSON.stringify(peer))));
+          });
+        }
+        break;
+      }
       case 'state':
       case 'persist':
       case 'ipfs':
@@ -1257,7 +1363,7 @@
     if (prev) prev.remove();
     const s = doc.createElement('style');
     s.id = 'alset-rt-css';
-    s.setAttribute('data-v', '6');
+    s.setAttribute('data-v', '7');
     s.textContent = `
 .rt-frame{margin:0 auto;border:1px solid ${THEME.line};border-radius:20px;background:#0a0d12;overflow:hidden;position:relative;touch-action:pan-y;isolation:isolate;contain:layout style paint}
 .rt-label{font-size:10px;color:${THEME.muted};padding:8px 12px;border-bottom:1px solid ${THEME.line};flex-shrink:0}

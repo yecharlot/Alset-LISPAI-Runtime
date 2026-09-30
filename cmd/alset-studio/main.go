@@ -13,6 +13,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/yecharlot/Alset-LISPAI-Runtime/internal/mininode"
 )
 
 type dataStore struct {
@@ -26,6 +28,7 @@ func main() {
 	dir := flag.String("dir", "web", "web root")
 	data := flag.String("data", "", "data dir")
 	flag.Parse()
+	mini := mininode.New()
 
 	root, _ := filepath.Abs(*dir)
 	dataDir := *data
@@ -170,15 +173,19 @@ func main() {
 		_ = os.WriteFile(filepath.Join(appDir, "manifest.webmanifest"), []byte(manifest), 0o644)
 
 		sw := `const C='alset-pwa-v4';
-self.addEventListener('install',e=>{e.waitUntil(caches.open(C).then(c=>c.addAll(['./','./index.html','./app.alset.json','./manifest.webmanifest','./app-runtime.js?v=4'])));self.skipWaiting()});
+self.addEventListener('install',e=>{e.waitUntil(caches.open(C).then(c=>c.addAll(['./','./index.html','./app.alset.json','./manifest.webmanifest','./app-runtime.js?v=7','./mininode.js'])));self.skipWaiting()});
 self.addEventListener('activate',e=>e.waitUntil(self.clients.claim()));
 self.addEventListener('fetch',e=>{e.respondWith(caches.match(e.request).then(h=>h||fetch(e.request)))});`
 		_ = os.WriteFile(filepath.Join(appDir, "sw.js"), []byte(sw), 0o644)
 
 		// Copy shared runtime into the app (same painter as Studio preview)
 		rtSrc := filepath.Join(root, "runtime", "app-runtime.js")
+		mnSrc := filepath.Join(root, "runtime", "mininode.js")
 		if b, err := os.ReadFile(rtSrc); err == nil {
 			_ = os.WriteFile(filepath.Join(appDir, "app-runtime.js"), b, 0o644)
+		}
+		if b, err := os.ReadFile(mnSrc); err == nil {
+			_ = os.WriteFile(filepath.Join(appDir, "mininode.js"), b, 0o644)
 		}
 
 		index := fmt.Sprintf(`<!DOCTYPE html>
@@ -200,7 +207,8 @@ header h1{margin:0;font-size:15px;color:#f5c542}
 details{margin:12px;color:#8b93a7;font-size:12px}
 pre{background:#0a0d12;padding:10px;border-radius:10px;overflow:auto;font-size:10px;max-height:30vh}
 </style>
-<script src="app-runtime.js?v=4"></script>
+<script src="mininode.js"></script>
+<script src="app-runtime.js?v=7"></script>
 </head><body>
 <header>
   <h1>%s</h1>
@@ -406,6 +414,84 @@ if('serviceWorker' in navigator){
 		default:
 			writeJSONStatus(w, 404, map[string]any{"error": "unknown tool", "tool": body.Tool})
 		}
+	})
+
+
+	
+	// MiniNode Alset embebido (Mind · Zyrion · LispAI · mesh)
+	mux.HandleFunc("/api/node/info", func(w http.ResponseWriter, r *http.Request) {
+		writeJSON(w, mini.Info())
+	})
+	mux.HandleFunc("/api/v2/info", func(w http.ResponseWriter, r *http.Request) {
+		writeJSON(w, mini.Info())
+	})
+	mux.HandleFunc("/api/mind/tick", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			http.Error(w, "POST only", 405)
+			return
+		}
+		var body struct {
+			Text string `json:"text"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+			writeJSONStatus(w, 400, map[string]any{"error": err.Error()})
+			return
+		}
+		res := mini.MindTick(body.Text)
+		writeJSON(w, res)
+	})
+	mux.HandleFunc("/api/mind/memory", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.Write(mini.MemoryJSON())
+	})
+	mux.HandleFunc("/api/lispai", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			http.Error(w, "POST only", 405)
+			return
+		}
+		var body struct {
+			Cmd string `json:"cmd"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+			writeJSONStatus(w, 400, map[string]any{"error": err.Error()})
+			return
+		}
+		writeJSON(w, mini.LispEval(body.Cmd))
+	})
+	mux.HandleFunc("/api/zyrion", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			http.Error(w, "POST only", 405)
+			return
+		}
+		var body struct {
+			Env    map[string]float64 `json:"env"`
+			Labels map[string]string  `json:"labels"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+			writeJSONStatus(w, 400, map[string]any{"error": err.Error()})
+			return
+		}
+		if body.Labels == nil {
+			body.Labels = map[string]string{"0": "SEGUIR", "1": "MATIZAR", "2": "SUMIDERO"}
+		}
+		writeJSON(w, mininode.EvalZyrionSimple(body.Env, body.Labels))
+	})
+	mux.HandleFunc("/api/mesh/announce", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			http.Error(w, "POST only", 405)
+			return
+		}
+		var body struct {
+			ID      string `json:"id"`
+			Name    string `json:"name"`
+			Payload string `json:"payload"`
+		}
+		_ = json.NewDecoder(r.Body).Decode(&body)
+		mini.Announce(body.ID, body.Name, body.Payload)
+		writeJSON(w, map[string]any{"ok": true, "peers": mini.ListPeers()})
+	})
+	mux.HandleFunc("/api/mesh/peers", func(w http.ResponseWriter, r *http.Request) {
+		writeJSON(w, map[string]any{"ok": true, "peers": mini.ListPeers(), "self": mini.PeerID})
 	})
 
 

@@ -76,6 +76,9 @@ export const CATALOG = [
     { type: 'nav-link', label: 'Nav detalle', defaults: { text: 'Ver detalle', route: 'detail', detailState: 'selected', routeState: 'route' } },
     { type: 'zyrion-filter', label: 'Zyrion filter', defaults: { source: 'apiData', out: 'apiFiltered', field: 'score', mode: 1 } },
     { type: 'mcp-agent', label: 'MCP agent', defaults: { url: '/mcp/tools', state: 'mcpTools' } },
+    { type: 'mind-panel', label: 'Mind (mini-nodo)', defaults: { state: 'mindText', out: 'mindVoice', local: false } },
+    { type: 'zyrion-panel', label: 'Zyrion panel', defaults: { state: 'zyrionEnv', local: false } },
+    { type: 'mesh-peers', label: 'Mesh peers', defaults: { name: 'mi-app', state: 'peers' } },
     { type: 'architecture', label: 'Clean layer', defaults: { layer: 'domain', pattern: 'repository' } },
   ]},
   { group: 'Alset-JS · Chronos', items: [

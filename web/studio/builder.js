@@ -156,6 +156,111 @@ function renderCanvas() {
 }
 
 
+
+/** Esquemas de props: selects en lugar de escribir a mano */
+export const PROP_SCHEMA = {
+  method: { type: 'select', options: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'] },
+  side: { type: 'select', options: ['left', 'right'] },
+  animated: { type: 'select', options: ['true', 'false'] },
+  auto: { type: 'select', options: ['true', 'false'] },
+  autoplay: { type: 'select', options: ['true', 'false'] },
+  open: { type: 'select', options: ['true', 'false'] },
+  multiple: { type: 'select', options: ['true', 'false'] },
+  showRaw: { type: 'select', options: ['true', 'false'] },
+  local: { type: 'select', options: ['true', 'false'] },
+  weight: { type: 'select', options: ['400', '500', '600', '700', 'bold'] },
+  color: { type: 'select', options: ['', 'primary', 'muted', 'text', 'secondary', '#f5c542', '#22d3ee', '#fb7185', '#a3e635', '#ffffff', '#0a0d12'], allowCustom: true },
+  bg: { type: 'select', options: ['', 'primary', 'card', 'transparent', '#0a0d12', '#12171f', '#f5c542', 'linear-gradient(135deg,#0b0e14,#f5c542)'], allowCustom: true },
+  theme: { type: 'select', options: ['gold-night', 'ocean', 'forest', 'rose', 'mono'] },
+  kind: { type: 'select', options: ['circle', 'blob', 'rounded', 'cut', 'pill', 'hex', 'diamond'] },
+  variant: { type: 'select', options: ['default', 'drawer'] },
+  accept: { type: 'select', options: ['image/*', 'image/png,image/jpeg', '.pdf', '*/*'] },
+  layer: { type: 'select', options: ['presentation', 'domain', 'data'] },
+  pattern: { type: 'select', options: ['repository', 'factory', 'singleton', 'di'] },
+  mode: { type: 'select', options: ['0', '1', '2'] },
+  lifecycle: { type: 'select', options: ['mount', 'active', 'idle', 'unmount'] },
+  src: { type: 'asset', accept: 'image/*' },
+  url: { type: 'url-or-asset' },
+  from: { type: 'select', options: ['#0b0e14', '#f5c542', '#5b9cf5', '#22d3ee', '#fb7185', 'transparent', 'rgba(0,0,0,0.75)'], allowCustom: true },
+  to: { type: 'select', options: ['#f5c542', '#0b0e14', '#22d3ee', '#a3e635', 'transparent', 'rgba(0,0,0,0.85)'], allowCustom: true },
+};
+
+function fieldControl(k, n, onChange) {
+  const schema = PROP_SCHEMA[k];
+  const val = n.props[k] ?? '';
+  if (schema?.type === 'select') {
+    const wrap = document.createElement('div');
+    wrap.className = 'field-row';
+    const sel = document.createElement('select');
+    sel.className = 'rt-input prop-select';
+    const opts = schema.options.slice();
+    if (schema.allowCustom && val !== '' && !opts.map(String).includes(String(val))) opts.unshift(String(val));
+    opts.forEach((o) => {
+      const opt = document.createElement('option');
+      opt.value = o;
+      opt.textContent = o === '' ? '— (vacío)' : o;
+      if (String(o) === String(val)) opt.selected = true;
+      sel.appendChild(opt);
+    });
+    sel.addEventListener('change', () => onChange(sel.value));
+    wrap.appendChild(sel);
+    if (schema.allowCustom) {
+      const custom = document.createElement('input');
+      custom.className = 'rt-input';
+      custom.placeholder = 'u otro valor…';
+      custom.value = opts.map(String).includes(String(val)) ? '' : String(val);
+      custom.addEventListener('change', () => { if (custom.value) onChange(custom.value); });
+      wrap.appendChild(custom);
+    }
+    return wrap;
+  }
+  if (schema?.type === 'asset' || k === 'src' || (k === 'url' && /image|gradient|src/i.test(n.type))) {
+    const wrap = document.createElement('div');
+    wrap.className = 'field-row asset-row';
+    const input = document.createElement('input');
+    input.className = 'rt-input';
+    input.value = val;
+    input.placeholder = 'URL o elige archivo…';
+    input.addEventListener('change', () => onChange(input.value));
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'rt-btn prop-browse';
+    btn.textContent = 'Examinar';
+    const file = document.createElement('input');
+    file.type = 'file';
+    file.accept = schema?.accept || 'image/*';
+    file.style.display = 'none';
+    btn.onclick = () => file.click();
+    file.onchange = () => {
+      const f = file.files && file.files[0];
+      if (!f) return;
+      const r = new FileReader();
+      r.onload = () => {
+        onChange(r.result);
+        input.value = '(archivo local)';
+      };
+      r.readAsDataURL(f);
+    };
+    wrap.appendChild(input);
+    wrap.appendChild(btn);
+    wrap.appendChild(file);
+    return wrap;
+  }
+  const input = document.createElement(k === 'text' || k === 'subtitle' || k === 'deny' || k === 'body' ? 'textarea' : 'input');
+  input.className = 'rt-input';
+  input.value = val;
+  if (k === 'color' || k === 'bg') input.placeholder = '#hex o primary|muted|…';
+  input.addEventListener('input', () => {
+    let v = input.value;
+    if (['x','y','width','height','radius','opacity','size','duration','value','pageSize','height'].includes(k) && v !== '' && !isNaN(Number(v))) v = Number(v);
+    if (v === 'true') v = true;
+    if (v === 'false') v = false;
+    onChange(v);
+  });
+  return input;
+}
+
+
 function renderProps() {
   const props = $('props');
   props.innerHTML = '';
@@ -197,21 +302,14 @@ function renderProps() {
     const wrap = document.createElement('div');
     wrap.className = 'field';
     wrap.innerHTML = `<label>${k}</label>`;
-    const input = document.createElement(k === 'text' || k === 'subtitle' || k === 'deny' ? 'textarea' : 'input');
-    input.value = n.props[k] ?? '';
-    if (k === 'color' || k === 'bg') {
-      input.placeholder = '#hex o primary|muted|…';
-    }
-    input.addEventListener('input', () => {
-      let v = input.value;
-      if (['x','y','width','height','radius','opacity','size','duration'].includes(k) && v !== '' && !isNaN(Number(v))) v = Number(v);
+    const ctrl = fieldControl(k, n, (v) => {
       if (v === 'true') v = true;
       if (v === 'false') v = false;
       n.props[k] = v;
       if (!lispDirty) $('lisp').value = treeToLisp(tree);
       paintPreviewOnly();
     });
-    wrap.appendChild(input);
+    wrap.appendChild(ctrl);
     props.appendChild(wrap);
   });
 
