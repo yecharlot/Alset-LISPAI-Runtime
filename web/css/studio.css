@@ -320,3 +320,21 @@ body.studio-full .pv-card {
   border-radius: 8px; color: var(--text); padding: 8px; font-size: 12px;
 }
 
+
+/* Preview device: contain absolute overlays (drawer, splash) */
+.device-frame {
+  position: relative !important;
+  overflow: hidden !important;
+  isolation: isolate;
+}
+.preview-host {
+  position: relative !important;
+  height: 100%;
+  max-height: 100%;
+  overflow: auto !important;
+  box-sizing: border-box;
+}
+.preview-host * {
+  max-width: 100%;
+  box-sizing: border-box;
+}

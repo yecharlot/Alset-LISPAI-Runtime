@@ -137,7 +137,7 @@ function wallet() {
   top.children.push(createNode('hamburger', { state: 'drawerOpen' }));
   top.children.push(title('Billetera', 18));
   root.children.push(top);
-  const drawer = createNode('drawer', { title: 'Cuenta', state: 'drawerOpen', side: 'left' });
+  const drawer = createNode('drawer', { title: 'Cuenta', state: 'drawerOpen', side: 'left', open: false });
   drawer.children.push(btn('Inicio', 'home'));
   drawer.children.push(btn('Enviar', 'send'));
   drawer.children.push(btn('Historial', 'hist'));
@@ -201,7 +201,7 @@ function ordersApp() {
   top.children.push(title('Pedidos+', 18));
   top.children.push(createNode('badge', { text: 'EN VIVO' }));
   root.children.push(top);
-  const dr = createNode('drawer', { title: 'Operación', state: 'drawerOpen' });
+  const dr = createNode('drawer', {  title: 'Operación', state: 'drawerOpen', open: false });
   dr.children.push(btn('Nuevos', 'new'));
   dr.children.push(btn('En camino', 'ship'));
   dr.children.push(btn('Cerrados', 'done'));
@@ -412,7 +412,7 @@ function mobileApp() {
   top.children.push(createNode('hamburger', { state: 'drawerOpen' }));
   top.children.push(title('Feed', 18));
   root.children.push(top);
-  const drawer = createNode('drawer', { title: 'Menú', state: 'drawerOpen', side: 'left' });
+  const drawer = createNode('drawer', {  title: 'Menú', state: 'drawerOpen', side: 'left', open: false });
   drawer.children.push(btn('Inicio', 'home'));
   drawer.children.push(btn('Buscar', 'search'));
   root.children.push(drawer);

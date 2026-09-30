@@ -14,8 +14,15 @@ import {
   Spacer,
   Animate,
   Image,
+  Layer,
+  Icon,
+  VideoNode,
+  AudioNode,
+  MapNode,
+  List,
   mod,
   Theme,
+  ALSET_ICONS,
 } from '../alset/AlsetPulseCore.js';
 import { THEME_COLORS } from './components.js';
 import { paintTree } from './domPaint.js';
@@ -389,12 +396,16 @@ function renderNode(n, log, depth = 0) {
       const gap = Number(p.gap) || 8;
       const pad = Number(p.pad) || 0;
       if (n.type === 'row') {
-        const wrap = p.wrap === true || p.wrap === 'true' || p.wrap === 'wrap' ? 'wrap' : 'nowrap';
+        const vw = window.__ALSET_VIEWPORT_WIDTH__ || 1100;
+        const forceWrap = p.wrap === true || p.wrap === 'true' || p.wrap === 'wrap' || vw <= 480;
+        const wrap = forceWrap ? 'wrap' : 'nowrap';
         Row(
           mod().key(key).gap(gap).padding(pad)
             .addStyle('flexWrap', wrap)
-            .addStyle('alignItems', 'center')
-            .addStyle('flexDirection', 'row'),
+            .addStyle('alignItems', 'stretch')
+            .addStyle('flexDirection', 'row')
+            .addStyle('width', '100%')
+            .addStyle('maxWidth', '100%'),
           kids
         );
       } else if (n.type === 'card') {
@@ -406,6 +417,232 @@ function renderNode(n, log, depth = 0) {
       }
       return;
     }
+
+    case 'hamburger': {
+      const openSt = getAlsetState(p.state || 'drawerOpen', false);
+      Button(p.icon || '☰', () => openSt.set(!openSt.get()), mod()
+        .key(key)
+        .padding('8px 12px')
+        .radius(8)
+        .background(Theme.current.surface)
+        .addStyle('flexShrink', '0'));
+      return;
+    }
+    case 'drawer':
+    case 'side-menu': {
+      // Contained inside device frame — never position:fixed to the browser viewport
+      const openSt = getAlsetState(p.state || 'drawerOpen', !!p.open);
+      const open = !!openSt.get();
+      const side = p.side === 'right' ? 'right' : 'left';
+      const panelW = Math.min(280, Math.floor((window.__ALSET_VIEWPORT_WIDTH__ || 390) * 0.82));
+      Layer(mod().key(key).position('relative').width('100%').addStyle('minHeight', open ? '120px' : '0'), () => {
+        if (!open) {
+          Text(p.title ? `(menú cerrado · ${p.title})` : '(menú cerrado)', mod().sizeText(11).color(colorOf('muted')));
+          return;
+        }
+        // Scrim
+        Column(
+          mod()
+            .key(key + '-scrim')
+            .position('absolute')
+            .top(0).left(0).right(0).bottom(0)
+            .background('rgba(0,0,0,0.45)')
+            .zIndex(20)
+            .clickable(() => openSt.set(false)),
+          null
+        );
+        // Panel
+        Column(
+          mod()
+            .key(key + '-panel')
+            .position('absolute')
+            .top(0)
+            .addStyle(side, '0')
+            .width(panelW)
+            .height('100%')
+            .background(Theme.current.surface)
+            .padding(14)
+            .gap(8)
+            .zIndex(21)
+            .addStyle('boxShadow', '0 8px 24px rgba(0,0,0,0.35)')
+            .addStyle('maxHeight', '100%')
+            .addStyle('overflow', 'auto'),
+          () => {
+            Row(mod().gap(8).addStyle('alignItems', 'center').addStyle('justifyContent', 'space-between'), () => {
+              Text(p.title || 'Menú', mod().sizeText(15).weight('700'));
+              Button('✕', () => openSt.set(false), mod().padding('4px 10px').background('#2a3344'));
+            });
+            (n.children || []).forEach((c) => renderNode(c, log, depth + 1));
+          }
+        );
+      });
+      return;
+    }
+    case 'tabs-shell': {
+      const tabSt = getAlsetState(p.state || 'tab', 0);
+      const labels = String(p.tabs || 'Inicio,Más').split(',').map((s) => s.trim()).filter(Boolean);
+      let idx = tabSt.get();
+      if (typeof idx === 'string') {
+        const i = labels.indexOf(idx);
+        idx = i >= 0 ? i : 0;
+      }
+      idx = Number(idx) || 0;
+      if (idx < 0 || idx >= labels.length) idx = 0;
+      Column(mod().key(key).gap(10).width('100%').addStyle('maxWidth', '100%'), () => {
+        Row(
+          mod()
+            .gap(4)
+            .addStyle('flexWrap', 'wrap')
+            .addStyle('width', '100%')
+            .addStyle('overflow', 'hidden'),
+          () => {
+            labels.forEach((lab, i) => {
+              Button(lab, () => tabSt.set(i), mod()
+                .padding('8px 12px')
+                .radius(8)
+                .background(i === idx ? Theme.current.primary : Theme.current.surface)
+                .addStyle('flexShrink', '1')
+                .addStyle('maxWidth', '100%'));
+            });
+          }
+        );
+        const kids = n.children || [];
+        if (kids[idx]) {
+          Column(mod().key(key + '-pane-' + idx).gap(8).width('100%').padding(4), () => {
+            renderNode(kids[idx], log, depth + 1);
+          });
+        } else {
+          Text('Sin contenido para esta pestaña', mod().sizeText(12).color(colorOf('muted')));
+        }
+      });
+      return;
+    }
+    case 'splash': {
+      const st = getAlsetState(p.state || 'splash', true);
+      const show = st.get() !== false;
+      if (!show) return;
+      const dur = Number(p.duration) || 1600;
+      if (p.autoHide !== false && !window['__alset_splash_' + key]) {
+        window['__alset_splash_' + key] = true;
+        setTimeout(() => st.set(false), dur);
+      }
+      Column(
+        mod()
+          .key(key)
+          .position('absolute')
+          .top(0).left(0).right(0).bottom(0)
+          .background(Theme.current.background || '#0b0e14')
+          .align('center', 'center')
+          .gap(10)
+          .zIndex(30)
+          .addStyle('minHeight', '200px'),
+        () => {
+          Text(p.title || 'Alset', mod().sizeText(22).weight('800').color(colorOf('primary')));
+          Text(p.subtitle || 'Cargando…', mod().sizeText(13).color(colorOf('muted')));
+        }
+      );
+      return;
+    }
+    case 'icon': {
+      const name = p.name || p.icon || 'home';
+      try {
+        Icon(name, mod().key(key).size(Number(p.size) || 24).color(colorOf(p.color || 'primary')));
+      } catch (_) {
+        Text('◇ ' + name, mod().key(key).sizeText(14));
+      }
+      return;
+    }
+    case 'floating-button':
+    case 'fab': {
+      // Contained FAB (never position:fixed to the browser — stays in device frame)
+      Button(
+        p.text || '+',
+        () => log && log('fab ' + (p.action || 'click')),
+        mod()
+          .key(key)
+          .size(52, 52)
+          .radius('50%')
+          .background(Theme.current.primary)
+          .align('center', 'center')
+          .addStyle('alignSelf', 'flex-end')
+          .addStyle('margin', '8px')
+      );
+      return;
+    }
+    case 'toast': {
+      Text(p.text || 'Toast', mod().key(key).sizeText(12).padding(8).background(Theme.current.surface).radius(8));
+      return;
+    }
+    case 'layer': {
+      Layer(mod().key(key).position('relative').width('100%'), () => {
+        (n.children || []).forEach((c) => renderNode(c, log, depth + 1));
+      });
+      return;
+    }
+    case 'gradient': {
+      const from = p.from || '#1a1f2e';
+      const to = p.to || Theme.current.primary;
+      Column(
+        mod()
+          .key(key)
+          .padding(Number(p.pad) || 12)
+          .radius(12)
+          .width('100%')
+          .gap(8)
+          .addStyle('backgroundImage', `linear-gradient(135deg, ${from}, ${to})`),
+        () => {
+          (n.children || []).forEach((c) => renderNode(c, log, depth + 1));
+        }
+      );
+      return;
+    }
+    case 'video': {
+      try {
+        VideoNode(mod().key(key).width('100%').height(Number(p.height) || 160).radius(8));
+      } catch (_) {
+        Text('[video]', mod().key(key).sizeText(12).color(colorOf('muted')));
+      }
+      return;
+    }
+    case 'audio': {
+      try {
+        AudioNode(mod().key(key).width('100%'));
+      } catch (_) {
+        Text('[audio]', mod().key(key).sizeText(12).color(colorOf('muted')));
+      }
+      return;
+    }
+    case 'map': {
+      try {
+        MapNode(mod().key(key).width('100%').height(Number(p.height) || 180).radius(8), {
+          lat: Number(p.lat) || 0,
+          lng: Number(p.lng) || 0,
+        });
+      } catch (_) {
+        Text('[mapa]', mod().key(key).sizeText(12).color(colorOf('muted')));
+      }
+      return;
+    }
+    case 'list-stream': {
+      List(mod().key(key).width('100%').height(Number(p.height) || 160), () => {
+        const st = getAlsetState(p.state || 'items', []);
+        const data = Array.isArray(st.get()) ? st.get() : [];
+        data.slice(0, 20).forEach((item, i) => {
+          Text(typeof item === 'string' ? item : JSON.stringify(item), mod().key(key + '-s' + i).sizeText(12));
+        });
+      });
+      return;
+    }
+    case 'animate': {
+      Animate(
+        () => {
+          (n.children || []).forEach((c) => renderNode(c, log, depth + 1));
+        },
+        { duration: Number(p.duration) || 400 }
+      );
+      return;
+    }
+
     case 'gate':
     case 'auth-gate': {
       const role = String(p.role || p.minRole || 'user');
@@ -479,12 +716,16 @@ export function renderAlsetPreview(host, nodes, log, { device, theme } = {}) {
     if (device) {
       frame.style.width = device.width + 'px';
       frame.style.maxWidth = '100%';
-      frame.style.minHeight = Math.min(device.height, 560) + 'px';
-      frame.style.overflow = 'auto';
+      frame.style.height = Math.min(device.height, 640) + 'px';
+      frame.style.minHeight = Math.min(device.height, 640) + 'px';
+      frame.style.overflow = 'hidden';
+      frame.style.position = 'relative';
       window.__ALSET_VIEWPORT_WIDTH__ = device.width;
       frame.dataset.device = device.id || '';
     } else {
       window.__ALSET_VIEWPORT_WIDTH__ = undefined;
+      frame.style.position = 'relative';
+      frame.style.overflow = 'hidden';
     }
     const label = document.createElement('div');
     label.className = 'device-label';
@@ -495,7 +736,11 @@ export function renderAlsetPreview(host, nodes, log, { device, theme } = {}) {
     root.id = 'alset-preview-root';
     root.className = 'preview-host';
     root.style.minHeight = '80px';
+    root.style.height = '100%';
+    root.style.overflow = 'auto';
+    root.style.position = 'relative';
     root.style.color = '#f4f4f5';
+    root.style.boxSizing = 'border-box';
     frame.appendChild(label);
     frame.appendChild(root);
     host.appendChild(frame);

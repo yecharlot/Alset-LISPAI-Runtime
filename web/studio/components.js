@@ -53,6 +53,18 @@ export const CATALOG = [
     { type: 'tabs-shell', label: 'Tabs (shell)', defaults: { tabs: 'Inicio,Explorar,Perfil', state: 'tab' }, container: true },
     { type: 'splash', label: 'Splash', defaults: { title: 'Alset', subtitle: 'Cargando…', duration: 1600, animated: true, autoHide: true, state: 'splash' } },
   ]},
+  { group: 'Alset-JS core', items: [
+    { type: 'icon', label: 'Icon', defaults: { name: 'pulse', size: 24 } },
+    { type: 'fab', label: 'FAB', defaults: { text: '+', action: 'add' } },
+    { type: 'layer', label: 'Layer', defaults: {}, container: true },
+    { type: 'gradient', label: 'Gradient', defaults: { from: '#1a1f2e', to: '#e8c547', pad: 14 }, container: true },
+    { type: 'toast', label: 'Toast', defaults: { text: 'Guardado' } },
+    { type: 'animate', label: 'Animate', defaults: { duration: 400 }, container: true },
+    { type: 'video', label: 'Video', defaults: { height: 160 } },
+    { type: 'audio', label: 'Audio', defaults: {} },
+    { type: 'map', label: 'Mapa', defaults: { height: 160, lat: 23.1, lng: -82.3 } },
+    { type: 'list-stream', label: 'List stream', defaults: { state: 'items', height: 140 } },
+  ]},
 ];
 
 export const TEMPLATES = [
