@@ -230,11 +230,18 @@ function renderProps() {
     input.value = val;
     input.addEventListener('input', () => {
       let v = input.value;
-      if (v !== '' && !isNaN(Number(v)) && k !== 'bg' && k !== 'color') v = Number(v);
+      if (v === '') {
+        // unset — no forzar 0x0
+        if (n.props.devices && n.props.devices[deviceId]) delete n.props.devices[deviceId][k];
+        delete n.props[k];
+        paintPreviewOnly();
+        return;
+      }
+      if (!isNaN(Number(v)) && k !== 'bg' && k !== 'color') v = Number(v);
       if (!n.props.devices) n.props.devices = {};
       if (!n.props.devices[deviceId]) n.props.devices[deviceId] = {};
       n.props.devices[deviceId][k] = v;
-      n.props[k] = v; // mirror base for deploy default
+      n.props[k] = v;
       paintPreviewOnly();
     });
     wrap.appendChild(input);

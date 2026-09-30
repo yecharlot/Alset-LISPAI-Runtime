@@ -31,24 +31,36 @@
   }
 
 
+  function numOrNull(v) {
+    if (v === null || v === undefined || v === '') return null;
+    const n = Number(v);
+    if (!Number.isFinite(n)) return null;
+    return n;
+  }
+
   function resolveLayout(p, deviceId) {
-    const base = {
-      x: p.x != null ? Number(p.x) : null,
-      y: p.y != null ? Number(p.y) : null,
-      width: p.width != null ? Number(p.width) : null,
-      height: p.height != null ? Number(p.height) : null,
-    };
+    p = p || {};
     const d = (p.devices && p.devices[deviceId]) || {};
+    // Prefer device override; treat "" / NaN / missing as unset (never force 0x0 boxes)
+    const pick = (key) => {
+      if (Object.prototype.hasOwnProperty.call(d, key) && d[key] !== '' && d[key] != null) {
+        return numOrNull(d[key]);
+      }
+      if (Object.prototype.hasOwnProperty.call(p, key) && p[key] !== '' && p[key] != null) {
+        return numOrNull(p[key]);
+      }
+      return null;
+    };
     return {
-      x: d.x != null ? Number(d.x) : base.x,
-      y: d.y != null ? Number(d.y) : base.y,
-      width: d.width != null ? Number(d.width) : base.width,
-      height: d.height != null ? Number(d.height) : base.height,
+      x: pick('x'),
+      y: pick('y'),
+      width: pick('width'),
+      height: pick('height'),
       bg: d.bg || p.bg || null,
       color: d.color || p.color || null,
-      radius: d.radius != null ? d.radius : p.radius,
-      opacity: d.opacity != null ? d.opacity : p.opacity,
-      fontSize: d.fontSize != null ? d.fontSize : p.size || p.fontSize,
+      radius: pick('radius'),
+      opacity: pick('opacity'),
+      fontSize: pick('fontSize') != null ? pick('fontSize') : (p.size != null ? numOrNull(p.size) : null),
     };
   }
 
@@ -59,13 +71,15 @@
       if (L.x != null) node.style.left = L.x + 'px';
       if (L.y != null) node.style.top = L.y + 'px';
     }
-    if (L.width != null) {
+    if (L.width != null && L.width > 0) {
       let w = L.width;
       if (typeof w === 'number' && maxW && w > maxW) w = maxW - 8;
       node.style.width = typeof w === 'number' ? w + 'px' : w;
       node.style.maxWidth = '100%';
     }
-    if (L.height != null) node.style.height = typeof L.height === 'number' ? L.height + 'px' : L.height;
+    if (L.height != null && L.height > 0) {
+      node.style.height = typeof L.height === 'number' ? L.height + 'px' : L.height;
+    }
     if (L.bg) node.style.background = L.bg;
     if (L.color) {
       const c = THEME[L.color] || L.color;
@@ -118,13 +132,18 @@
           box.style.top = ny + 'px';
           box.style.position = 'relative';
         };
+        let moved = false;
+        const move2 = (e) => {
+          moved = true;
+          move(e);
+        };
         const up = () => {
           box.style.cursor = 'grab';
-          window.removeEventListener('pointermove', move);
+          window.removeEventListener('pointermove', move2);
           window.removeEventListener('pointerup', up);
-          onChange(id, deviceId, last);
+          if (moved) onChange(id, deviceId, last);
         };
-        window.addEventListener('pointermove', move);
+        window.addEventListener('pointermove', move2);
         window.addEventListener('pointerup', up);
       });
 
@@ -566,7 +585,7 @@
 .rt-node{box-sizing:border-box;max-width:100%}
 .rt-selected{outline:2px solid ${THEME.primary}!important;outline-offset:2px}
 .rt-handle{position:absolute;right:0;bottom:0;width:14px;height:14px;background:${THEME.primary};border-radius:2px 0 4px 0;cursor:nwse-resize;z-index:5}
-.rt-col{display:flex;flex-direction:column;gap:8px;width:100%}
+.rt-col{display:flex;flex-direction:column;gap:8px;width:100%;min-width:0}
 .rt-row{display:flex;flex-direction:row;flex-wrap:wrap;gap:8px;align-items:center}
 .rt-card{background:${THEME.card};border:1px solid ${THEME.line};border-radius:12px;padding:12px}
 .rt-btn{appearance:none;border:0;background:${THEME.primary};color:#111;font-weight:700;padding:10px 16px;border-radius:10px;cursor:pointer}
@@ -576,7 +595,7 @@
 .rt-hero-title{font-size:22px;font-weight:800;color:${THEME.primary}}
 .rt-form-title{font-weight:700;font-size:15px;margin-bottom:4px}
 .rt-badge{display:inline-block;padding:2px 8px;border-radius:999px;background:rgba(52,211,153,.15);color:${THEME.ok};font-size:11px;font-weight:700}
-.rt-tab{appearance:none;border:1px solid ${THEME.line};background:transparent;color:${THEME.muted};padding:8px 12px;border-radius:8px;cursor:pointer;font-size:12px}
+.rt-tab{appearance:none;border:1px solid ${THEME.line};background:transparent;color:${THEME.muted};padding:8px 12px;border-radius:8px;cursor:pointer;font-size:12px;flex:0 0 auto;white-space:nowrap}
 .rt-tab.active{color:${THEME.primary};border-color:rgba(245,197,66,.45);background:rgba(245,197,66,.08)}
 .rt-tabbar{margin-bottom:8px}
 .rt-pre{font-size:10px;color:${THEME.muted};white-space:pre-wrap;margin:6px 0 0}
@@ -720,6 +739,20 @@
         frame.appendChild(hint);
       }
       host.appendChild(frame);
+
+      // Scale emulator to fit the preview pane without changing layout width
+      if (!isPwa && host.clientWidth > 40) {
+        const logical = device.width || 390;
+        const avail = Math.max(120, host.clientWidth - 24);
+        const scale = Math.min(1, avail / logical);
+        if (scale < 0.999) {
+          frame.style.transform = 'scale(' + scale + ')';
+          frame.style.transformOrigin = 'top center';
+          // Reserve vertical space so parent scroll height is correct
+          const h = Math.min(device.height || 720, 720);
+          host.style.minHeight = Math.ceil(h * scale + 16) + 'px';
+        }
+      }
 
       const tree = opts.tree || [];
       if (!tree.length) root.appendChild(el('div', 'rt-muted', 'Árbol vacío'));
