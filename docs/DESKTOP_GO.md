@@ -51,3 +51,9 @@ go build -o alset-studio ./cmd/alset-studio
 3. Opcional: script `.desktop` (Linux) que ejecute el binario.
 
 Electron sigue disponible en `desktop/` si lo prefieres; el camino Go es más liviano y alineado al stack Alset.
+
+
+## Electron (app desktop real)
+
+
+Los npm van en **desktop/**, no en la raíz.

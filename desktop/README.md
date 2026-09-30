@@ -1,35 +1,46 @@
 # Alset Studio Desktop (Electron)
 
-## Desarrollo
+App de escritorio **real**: ventana propia, pantalla completa, icono al empaquetar.
+
+## Importante
+
+Los comandos `npm` van **dentro de `desktop/`**, no en la raíz del repo (ahí no hay `package.json`).
+
+## Desarrollo (pantalla completa)
 
 ```bash
-# Terminal 1 — motor
-cd .. && go build -o alset-studio ./cmd/alset-studio && ./alset-studio -addr :5177 -dir web
+# 1) Motor Go
+cd /ruta/a/Alset-LISPAI-Runtime
+go build -o alset-studio ./cmd/alset-studio
 
-# Terminal 2 — shell
-cd desktop && npm i && npm start
-```
-
-O con motor embebido:
-
-```bash
-cd .. && go build -o alset-studio ./cmd/alset-studio
+# 2) Electron
 cd desktop
-export ALSET_STUDIO_BIN=../alset-studio
-export ALSET_STUDIO_WEB=../web
-npm i && npm start
+npm install
+export ALSET_STUDIO_BIN="$(pwd)/../alset-studio"
+export ALSET_STUDIO_WEB="$(pwd)/../web"
+npm start
 ```
 
-Solo nube / Studio remoto:
+- Arranca en **pantalla completa**.
+- **F11** o menú Vista → salir / entrar de fullscreen.
+- Sin fullscreen al inicio: `ALSET_STUDIO_MAXIMIZE=1 npm start` (solo maximizado).
+
+Si el motor ya está corriendo:
 
 ```bash
-ALSET_STUDIO_URL=https://tu-studio.example npm start
+# terminal 1
+./alset-studio -addr 127.0.0.1:5177 -dir web
+# terminal 2
+cd desktop && npm start
 ```
 
-## Empaquetar
+## Empaquetar (AppImage / deb)
 
 ```bash
+cd desktop
+npm install
 npm run dist
+# Artefactos en desktop/dist/
 ```
 
-Requiere `electron` y `electron-builder` (ya en package.json).
+Para que el instalable lleve el motor Go, compila antes `alset-studio` y define rutas en el empaquetado (o arranca el motor aparte y usa `ALSET_STUDIO_URL`).
