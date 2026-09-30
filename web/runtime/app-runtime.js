@@ -1343,6 +1343,88 @@
         }
         break;
       }
+
+      case 'video': {
+        const src = (p.state && ctx.state?.[p.state]) || p.src || p.url || '';
+        const v = document.createElement('video');
+        v.className = 'rt-video';
+        v.controls = p.controls !== false && p.controls !== 'false';
+        if (p.autoplay === true || p.autoplay === 'true') {
+          v.autoplay = true;
+          v.muted = true; // autoplay policies
+        }
+        if (p.loop === true || p.loop === 'true') v.loop = true;
+        if (p.poster) v.poster = p.poster;
+        v.playsInline = true;
+        v.setAttribute('playsinline', '');
+        if (p.height) v.style.maxHeight = (typeof p.height === 'number' ? p.height + 'px' : p.height);
+        else v.style.maxHeight = '240px';
+        v.style.width = '100%';
+        v.style.borderRadius = '12px';
+        v.style.background = '#000';
+        if (src) {
+          // HLS-ish: if .m3u8 and Hls not present, still set src (Safari native)
+          v.src = src;
+        } else {
+          wrap.appendChild(el('div', 'rt-muted', 'Video: indica src o url'));
+        }
+        wrap.appendChild(v);
+        break;
+      }
+      case 'audio': {
+        const src = (p.state && ctx.state?.[p.state]) || p.src || p.url || '';
+        const a = document.createElement('audio');
+        a.className = 'rt-audio';
+        a.controls = p.controls !== false && p.controls !== 'false';
+        if (p.autoplay === true || p.autoplay === 'true') a.autoplay = true;
+        if (p.loop === true || p.loop === 'true') a.loop = true;
+        a.style.width = '100%';
+        if (src) a.src = src;
+        else wrap.appendChild(el('div', 'rt-muted', 'Audio: indica src o url'));
+        if (p.title) wrap.appendChild(el('div', 'rt-muted', p.title));
+        wrap.appendChild(a);
+        break;
+      }
+      case 'map': {
+        const lat = Number(p.lat ?? ctx.state?.[p.latState] ?? 23.1136);
+        const lng = Number(p.lng ?? ctx.state?.[p.lngState] ?? -82.3666);
+        const zoom = Number(p.zoom || 13);
+        const h = Number(p.height || 200);
+        addClass(wrap, 'rt-map');
+        wrap.style.height = h + 'px';
+        wrap.style.borderRadius = '12px';
+        wrap.style.overflow = 'hidden';
+        wrap.style.border = '1px solid ' + THEME.line;
+        // OpenStreetMap embed (sin API key) al estilo Alset
+        const delta = 0.08 / Math.max(zoom / 10, 1);
+        const bbox = [lng - delta, lat - delta * 0.7, lng + delta, lat + delta * 0.7].join('%2C');
+        const iframe = document.createElement('iframe');
+        iframe.title = p.title || 'Mapa';
+        iframe.width = '100%';
+        iframe.height = String(h);
+        iframe.style.border = '0';
+        iframe.loading = 'lazy';
+        iframe.referrerPolicy = 'no-referrer-when-downgrade';
+        iframe.src =
+          'https://www.openstreetmap.org/export/embed.html?bbox=' +
+          bbox +
+          '&layer=mapnik&marker=' +
+          lat +
+          '%2C' +
+          lng;
+        wrap.appendChild(iframe);
+        const link = document.createElement('a');
+        link.className = 'rt-muted';
+        link.href = 'https://www.openstreetmap.org/?mlat=' + lat + '&mlon=' + lng + '#map=' + zoom + '/' + lat + '/' + lng;
+        link.target = '_blank';
+        link.rel = 'noopener';
+        link.textContent = (p.label || 'Abrir en OSM') + ' · ' + lat.toFixed(4) + ', ' + lng.toFixed(4);
+        link.style.display = 'block';
+        link.style.padding = '6px 4px';
+        link.style.fontSize = '11px';
+        wrap.appendChild(link);
+        break;
+      }
       case 'state':
       case 'persist':
       case 'ipfs':
@@ -1363,7 +1445,7 @@
     if (prev) prev.remove();
     const s = doc.createElement('style');
     s.id = 'alset-rt-css';
-    s.setAttribute('data-v', '7');
+    s.setAttribute('data-v', '8');
     s.textContent = `
 .rt-frame{margin:0 auto;border:1px solid ${THEME.line};border-radius:20px;background:#0a0d12;overflow:hidden;position:relative;touch-action:pan-y;isolation:isolate;contain:layout style paint}
 .rt-label{font-size:10px;color:${THEME.muted};padding:8px 12px;border-bottom:1px solid ${THEME.line};flex-shrink:0}
@@ -1473,6 +1555,9 @@
 .rt-rest .rt-btn,.rt-pulse .rt-btn{margin-top:8px}
 .rt-view-agent{border-left:3px solid ${THEME.primary}}
 
+.rt-video{display:block;width:100%;background:#000}
+.rt-audio{display:block;width:100%;margin-top:6px}
+.rt-map iframe{display:block}
 .rt-gesture-hint{position:absolute;bottom:8px;left:8px;right:8px;font-size:10px;color:${THEME.muted};pointer-events:none;opacity:.7}
 `;
     doc.head.appendChild(s);

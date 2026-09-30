@@ -178,3 +178,29 @@ En producción avanzada puedes apuntar un **rest-consumer** al nodo PrismaTec (`
 - [ ] Deploy y apertura de la PWA con hard refresh  
 
 Documentación extra: `docs/AGENTS_REST_PULSE.md`, `docs/MININODE.md`, `docs/VISION.es.md`.
+
+
+## 11. Multimedia y mapas
+
+### Video
+Props: `src` o `url` (MP4, WebM; HLS `.m3u8` en Safari nativo), `controls`, `autoplay`, `loop`, `poster`, `height`, `state` (si el estado tiene una URL, tiene prioridad).
+
+### Audio
+Props: `src` / `url` (MP3, OGG, etc.), `controls`, `autoplay`, `loop`, `title`, `state`.
+
+### Mapa
+OpenStreetMap embebido (sin API key). Props: `lat`, `lng`, `zoom`, `height`, `label`.
+
+### Apps desplegadas a pantalla completa
+El HTML de deploy **no incluye header**: `#mount` ocupa todo el viewport (`100dvh`). El emulador del Studio sigue mostrando marco y etiqueta de dispositivo.
+
+### Ejemplos
+- **Reproductor multimedia** · **Media por pulsos** · **Explorar mapa** · **Shell multimedia**
+
+Pulse de ejemplo para cambiar media:
+
+```bash
+curl -s -X POST http://127.0.0.1:5177/api/pulse \
+  -H "Content-Type: application/json" \
+  -d '{"key":"media","state":{"src":"https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4"},"text":"nuevo video"}'
+```

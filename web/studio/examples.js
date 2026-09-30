@@ -955,6 +955,89 @@ function demoShapesMotion() {
 }
 
 
+
+function demoMediaPlayer() {
+  const root = col(12, 12);
+  root.children.push(title('Reproductor multimedia', 18));
+  root.children.push(muted('Video y audio desde URL (streaming HTTP)'));
+  root.children.push(createNode('video', {
+    src: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4',
+    height: 200,
+    controls: true,
+  }));
+  root.children.push(createNode('audio', {
+    src: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3',
+    title: 'Pista demo',
+    controls: true,
+  }));
+  root.children.push(createNode('progress', { state: 'mediaProg', value: 0 }));
+  return [root];
+}
+
+function demoPulseMedia() {
+  const root = col(12, 12);
+  root.children.push(title('Multimedia por pulsos', 18));
+  root.children.push(muted('El pulse puede traer src de video/audio en state'));
+  root.children.push(createNode('view-agent', { key: 'media', lifecycle: 'active' }));
+  root.children[root.children.length - 1].children.push(muted('key=media'));
+  root.children.push(createNode('pulse-consumer', {
+    url: '/api/pulse', keys: 'media', state: 'pulseData', auto: false,
+  }));
+  root.children.push(createNode('video', {
+    state: 'mediaSrc',
+    src: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4',
+    height: 180,
+    controls: true,
+  }));
+  root.children.push(createNode('text', { text: 'Publica: {"key":"media","state":{"src":"https://…mp4"}}', size: 11, color: 'muted' }));
+  return [root];
+}
+
+function demoMapExplore() {
+  const root = col(12, 12);
+  root.children.push(title('Explorar mapa', 18));
+  root.children.push(muted('OpenStreetMap embebido · estilo Alset'));
+  root.children.push(createNode('map', {
+    lat: 23.1136, lng: -82.3666, zoom: 13, height: 220, label: 'La Habana',
+  }));
+  root.children.push(createNode('map', {
+    lat: 20.024, lng: -75.8219, zoom: 12, height: 180, label: 'Guantánamo',
+  }));
+  root.children.push(createNode('glass', { pad: 12 }));
+  root.children[root.children.length - 1].children.push(muted('Coords en props lat/lng · sin API key'));
+  return [root];
+}
+
+function demoMediaMapShell() {
+  const tabs = createNode('bottom-tabs', {
+    tabs: 'Video,Audio,Mapa,Pulse',
+    icons: '▶,♪,⌖,⚡',
+    state: 'mainTab',
+  });
+  const v = col(10, 12);
+  v.children.push(title('Video', 16));
+  v.children.push(createNode('video', {
+    src: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerJoyrides.mp4',
+    height: 200, controls: true,
+  }));
+  const a = col(10, 12);
+  a.children.push(title('Audio', 16));
+  a.children.push(createNode('audio', {
+    src: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3',
+    title: 'Stream MP3', controls: true,
+  }));
+  const m = col(10, 12);
+  m.children.push(title('Mapa', 16));
+  m.children.push(createNode('map', { lat: 23.14, lng: -82.35, height: 240, zoom: 14, label: 'Habana Vieja' }));
+  const p = col(10, 12);
+  p.children.push(title('Pulse media', 16));
+  p.children.push(createNode('pulse-consumer', { url: '/api/pulse', keys: 'media', state: 'pulseData' }));
+  p.children.push(createNode('mesh-peers', { name: 'media-app', state: 'peers' }));
+  tabs.children.push(v, a, m, p);
+  return [tabs];
+}
+
+
 export const EXAMPLES = [
   // Marketing
   { id: 'landing', name: 'Landing moderna', blurb: 'Hero + CTA + métrica reactiva', tags: ['marketing', 'hero'], build: landing },
@@ -1007,4 +1090,8 @@ export const EXAMPLES = [
   { id: 'demo-shop-full', name: 'Nova Shop completa', blurb: 'Drawer · tabs · REST · carousel · avatar', tags: ['pro', 'shop'], build: demoShopFull },
   { id: 'demo-clean', name: 'Clean Architecture', blurb: 'Capas presentation·domain·data', tags: ['arch'], build: demoCleanArch },
   { id: 'demo-shapes', name: 'Formas y motion', blurb: 'Shapes · glass · carousel', tags: ['design'], build: demoShapesMotion },
+  { id: 'demo-media', name: 'Reproductor multimedia', blurb: 'Video + audio real por URL', tags: ['media'], build: demoMediaPlayer },
+  { id: 'demo-pulse-media', name: 'Media por pulsos', blurb: 'Pulse key=media + video', tags: ['media', 'pulse'], build: demoPulseMedia },
+  { id: 'demo-map', name: 'Explorar mapa', blurb: 'OSM embebido Habana · Guantánamo', tags: ['map'], build: demoMapExplore },
+  { id: 'demo-media-shell', name: 'Shell multimedia', blurb: 'Tabs video·audio·mapa·pulse', tags: ['media', 'pro'], build: demoMediaMapShell },
 ];

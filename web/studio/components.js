@@ -90,9 +90,9 @@ export const CATALOG = [
     { type: 'glass', label: 'Glass / blur', defaults: { pad: 16, gap: 8 }, container: true },
     { type: 'toast', label: 'Toast', defaults: { text: 'Guardado', duration: 2200 } },
     { type: 'animate', label: 'Animate', defaults: { duration: 400 }, container: true },
-    { type: 'video', label: 'Video', defaults: { height: 160 } },
-    { type: 'audio', label: 'Audio', defaults: {} },
-    { type: 'map', label: 'Mapa', defaults: { height: 160, lat: 23.1, lng: -82.3 } },
+    { type: 'video', label: 'Video', defaults: { src: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4', height: 200, controls: true } },
+    { type: 'audio', label: 'Audio', defaults: { src: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3', title: 'Demo audio', controls: true } },
+    { type: 'map', label: 'Mapa', defaults: { height: 200, lat: 23.1136, lng: -82.3666, zoom: 13, label: 'La Habana' } },
     { type: 'lazy-column', label: 'Lazy Column', defaults: { state: 'feed', height: 280, pageSize: 8, empty: 'Sin ítems' } },
     { type: 'lazy-row', label: 'Lazy Row', defaults: { state: 'chips', height: 56, pageSize: 6 } },
     { type: 'router', label: 'Nav Router', defaults: { routes: 'home,catalog,profile', state: 'route' }, container: true },
@@ -322,6 +322,33 @@ export const TEMPLATES = [
       c.children.push(va);
       c.children.push(createNode('pulse-consumer', { url: '/api/pulse', keys: 'home', state: 'pulseData' }));
       c.children.push(createNode('button', { text: 'Simular nav', action: 'tab-home' }));
+      return [c];
+    },
+  },
+  {
+    id: 'media-player',
+    name: 'Reproductor',
+    build() {
+      const c = createNode('column', { gap: 10, pad: 12 });
+      c.children.push(createNode('text', { text: 'Multimedia', weight: 'bold', size: 17 }));
+      c.children.push(createNode('video', {
+        src: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4',
+        height: 200, controls: true,
+      }));
+      c.children.push(createNode('audio', {
+        src: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3',
+        title: 'Audio', controls: true,
+      }));
+      return [c];
+    },
+  },
+  {
+    id: 'map-shell',
+    name: 'Mapa',
+    build() {
+      const c = createNode('column', { gap: 10, pad: 12 });
+      c.children.push(createNode('text', { text: 'Ubicación', weight: 'bold', size: 17 }));
+      c.children.push(createNode('map', { lat: 23.1136, lng: -82.3666, height: 260, zoom: 13, label: 'La Habana' }));
       return [c];
     },
   },

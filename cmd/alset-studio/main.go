@@ -169,11 +169,11 @@ func main() {
   "background_color": "#0b0e14",
   "theme_color": "#0b0e14",
   "lang": "es"
-}`, name, name)
+}`, name)
 		_ = os.WriteFile(filepath.Join(appDir, "manifest.webmanifest"), []byte(manifest), 0o644)
 
 		sw := `const C='alset-pwa-v4';
-self.addEventListener('install',e=>{e.waitUntil(caches.open(C).then(c=>c.addAll(['./','./index.html','./app.alset.json','./manifest.webmanifest','./app-runtime.js?v=7','./mininode.js'])));self.skipWaiting()});
+self.addEventListener('install',e=>{e.waitUntil(caches.open(C).then(c=>c.addAll(['./','./index.html','./app.alset.json','./manifest.webmanifest','./app-runtime.js?v=8','./mininode.js'])));self.skipWaiting()});
 self.addEventListener('activate',e=>e.waitUntil(self.clients.claim()));
 self.addEventListener('fetch',e=>{e.respondWith(caches.match(e.request).then(h=>h||fetch(e.request)))});`
 		_ = os.WriteFile(filepath.Join(appDir, "sw.js"), []byte(sw), 0o644)
@@ -198,31 +198,17 @@ self.addEventListener('fetch',e=>{e.respondWith(caches.match(e.request).then(h=>
 <link rel="manifest" href="manifest.webmanifest"/>
 <title>%s · Alset</title>
 <style>
-html,body{margin:0;height:100%%;background:#0b0e14;color:#eef1f6;font-family:system-ui,-apple-system,sans-serif;overflow:hidden}
-header{padding:10px 14px;border-bottom:1px solid #1e2530;display:flex;gap:10px;align-items:center;flex-wrap:wrap;flex-shrink:0}
-header h1{margin:0;font-size:15px;color:#f5c542}
-.meta{color:#8b93a7;font-size:11px}
-#mount{height:calc(100dvh - 48px);padding:0;display:flex;justify-content:stretch;align-items:stretch;overflow:hidden}
-#mount > *{width:100%%;height:100%%}
-details{margin:12px;color:#8b93a7;font-size:12px}
-pre{background:#0a0d12;padding:10px;border-radius:10px;overflow:auto;font-size:10px;max-height:30vh}
+html,body{margin:0;width:100%%;height:100%%;height:100dvh;background:#0b0e14;color:#eef1f6;font-family:system-ui,-apple-system,sans-serif;overflow:hidden}
+#mount{position:fixed;inset:0;width:100%%;height:100%%;height:100dvh;padding:0;margin:0;display:flex;overflow:hidden}
+#mount > *{width:100%%!important;height:100%%!important;max-width:100%%!important;border:0!important;border-radius:0!important}
 </style>
 <script src="mininode.js"></script>
-<script src="app-runtime.js?v=7"></script>
+<script src="app-runtime.js?v=8"></script>
 </head><body>
-<header>
-  <h1>%s</h1>
-  <span class="meta">RootCID <code id="cid">…</code></span>
-  <span class="meta">offline-first PWA</span>
-</header>
-<div id="mount"></div>
-<details><summary>JSON de la app</summary><pre id="out"></pre></details>
+<div id="mount" role="main"></div>
 <script>
 const mount=document.getElementById('mount');
-const out=document.getElementById('out');
 fetch('app.alset.json').then(r=>r.json()).then(j=>{
-  document.getElementById('cid').textContent=j.rootcid||'—';
-  out.textContent=JSON.stringify(j,null,2);
   if(!window.AlsetAppRuntime){
     mount.textContent='Falta app-runtime.js — vuelve a desplegar desde el Studio';
     return;
@@ -265,7 +251,7 @@ if('serviceWorker' in navigator){
   }
 }
 </script>
-</body></html>`, name, name)
+</body></html>`, name)
 		_ = os.WriteFile(filepath.Join(appDir, "index.html"), []byte(index), 0o644)
 
 

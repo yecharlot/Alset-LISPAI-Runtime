@@ -33,3 +33,11 @@ Open http://127.0.0.1:5177/ — hard refresh after pulls (Ctrl+Shift+R).
 MiniNode is portable and embedded. Point REST at a full PrismaTec node when you need corpus, genes, and full `evaluar-zyrion`.
 
 See also: `docs/MININODE.md`, `docs/AGENTS_REST_PULSE.md`.
+
+
+## Multimedia & maps
+
+- **video** / **audio**: real playback from `src`/`url` or `state` URL; controls, autoplay, loop.
+- **map**: OpenStreetMap embed (`lat`, `lng`, `zoom`).
+- Deployed PWAs are **full viewport** (no studio header).
+- Examples: Media player, Pulse media, Map explore, Media shell.
