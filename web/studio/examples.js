@@ -815,6 +815,146 @@ function demoRestPulse() {
   return [root];
 }
 
+
+/* ── Labs ecosistema completo ── */
+function demoMiniNodeLab() {
+  const root = col(12, 12);
+  root.children.push(title('MiniNode Lab', 18));
+  root.children.push(muted('Mind · Zyrion · mesh sin PrismaTec'));
+  root.children.push(createNode('mind-panel', { state: 'mindText', out: 'mindVoice', local: false }));
+  root.children.push(createNode('loader', { state: '_loading_mind', text: 'Latido…' }));
+  root.children.push(createNode('zyrion-panel', { state: 'zyrionEnv', local: false }));
+  root.children.push(createNode('mesh-peers', { name: 'lab-app', state: 'peers' }));
+  root.children.push(createNode('mcp-agent', { url: '/mcp/tools' }));
+  return [root];
+}
+
+function demoDecentralApp() {
+  const root = col(0, 0);
+  const tabs = createNode('bottom-tabs', {
+    tabs: 'Feed,Pulse,Peers,Mind',
+    icons: '▣,⚡,◈,☺',
+    state: 'mainTab',
+  });
+  const feed = col(10, 12);
+  feed.children.push(title('Feed descentralizado', 17));
+  feed.children.push(createNode('rest-consumer', {
+    method: 'GET', url: '/v1/data', bind: 'apiData', bindPath: 'items', auto: true,
+    loadingKey: '_loading_apiData', buttonText: 'Sincronizar',
+  }));
+  feed.children.push(createNode('loader', { state: '_loading_apiData' }));
+  feed.children.push(createNode('lazy-column', { state: 'apiData', height: 200, pageSize: 6, itemLabel: 'Post' }));
+  const pulse = col(10, 12);
+  pulse.children.push(title('Bus de pulsos', 17));
+  const va = createNode('view-agent', { key: 'feed', lifecycle: 'active' });
+  va.children.push(muted('key=feed · direccionable'));
+  pulse.children.push(va);
+  pulse.children.push(createNode('pulse-consumer', { url: '/api/pulse', keys: 'feed,detail', state: 'pulseData', auto: false }));
+  const peers = col(10, 12);
+  peers.children.push(title('Peers mesh', 17));
+  peers.children.push(createNode('mesh-peers', { name: 'decentral-1', state: 'peers' }));
+  const mind = col(10, 12);
+  mind.children.push(title('Mind embebido', 17));
+  mind.children.push(createNode('mind-panel', { local: true, state: 'mindText', out: 'mindVoice' }));
+  tabs.children.push(feed, pulse, peers, mind);
+  root.children.push(tabs);
+  return [root];
+}
+
+function demoShopFull() {
+  const root = col(0, 0);
+  const top = row(10);
+  top.props.pad = 12;
+  top.children.push(createNode('hamburger', { state: 'drawerOpen' }));
+  top.children.push(title('Nova Shop', 18));
+  top.children.push(createNode('badge', { text: 'PWA' }));
+  root.children.push(top);
+  const dr = createNode('drawer', { title: 'Nova', subtitle: 'Comercio', state: 'drawerOpen', open: false });
+  [['Inicio', 'tab-Inicio', '⌂'], ['Catálogo', 'tab-Catálogo', '▣'], ['Carrito', 'tab-Carrito', '◎'], ['Cuenta', 'tab-Cuenta', '☺']].forEach(([a, b, c]) => {
+    dr.children.push(createNode('button', { text: a, action: b, icon: c }));
+  });
+  root.children.push(dr);
+  const tabs = createNode('bottom-tabs', {
+    tabs: 'Inicio,Catálogo,Carrito,Cuenta',
+    icons: '⌂,▣,◎,☺',
+    state: 'mainTab',
+  });
+  const home = col(12, 12);
+  home.children.push(createNode('gradient-image', {
+    src: '', from: 'transparent', to: 'rgba(0,0,0,0.8)', height: 140, title: 'Ofertas de hoy',
+  }));
+  home.children.push(createNode('carousel', { state: 'carouselIdx', animated: true }));
+  home.children[home.children.length - 1].children.push(createNode('card', { pad: 12 }));
+  home.children[home.children.length - 1].children[0].children.push(title('Envío 24h', 15));
+  home.children[home.children.length - 1].children.push(createNode('card', { pad: 12 }));
+  home.children[home.children.length - 1].children[1].children.push(title('Pago CUP / USD', 15));
+  const cat = col(10, 12);
+  cat.children.push(createNode('form-search', { state: 'q', placeholder: 'Buscar…' }));
+  cat.children.push(createNode('rest-consumer', {
+    method: 'GET', url: '/v1/data', bind: 'products', bindPath: 'items', auto: true, buttonText: 'Cargar catálogo',
+  }));
+  cat.children.push(createNode('lazy-column', { state: 'products', height: 220, pageSize: 5, itemLabel: 'Producto' }));
+  cat.children.push(createNode('nav-link', { text: 'Ver detalle', route: 'detail', detailState: 'selected', routeState: 'route' }));
+  const cart = col(10, 12);
+  cart.children.push(title('Carrito', 16));
+  cart.children.push(createNode('list', { state: 'cart', empty: 'Vacío · agrega desde catálogo' }));
+  cart.children.push(createNode('progress', { state: 'checkoutProg', value: 30 }));
+  cart.children.push(btn('Confirmar pedido', 'checkout'));
+  const acc = col(10, 12);
+  acc.children.push(createNode('form-login', { title: 'Tu cuenta' }));
+  acc.children.push(createNode('image-browser', { state: 'avatar' }));
+  tabs.children.push(home, cat, cart, acc);
+  root.children.push(tabs);
+  return [root];
+}
+
+function demoCleanArch() {
+  const root = col(12, 12);
+  root.children.push(title('Clean Architecture UI', 18));
+  root.children.push(createNode('architecture', { layer: 'presentation', pattern: 'di' }));
+  const pres = createNode('glass', { pad: 12, gap: 8 });
+  pres.children.push(muted('Presentation'));
+  pres.children.push(createNode('button', { text: 'Acción UI', action: 'ui-action' }));
+  root.children.push(pres);
+  root.children.push(createNode('architecture', { layer: 'domain', pattern: 'factory' }));
+  const dom = createNode('card', { pad: 12 });
+  dom.children.push(muted('Domain · reglas'));
+  dom.children.push(createNode('zyrion-filter', { source: 'apiData', out: 'filtered', field: 'score', mode: 1 }));
+  root.children.push(dom);
+  root.children.push(createNode('architecture', { layer: 'data', pattern: 'repository' }));
+  const data = createNode('card', { pad: 12 });
+  data.children.push(muted('Data · REST repository'));
+  data.children.push(createNode('rest-consumer', {
+    method: 'GET', url: '/v1/data', bind: 'apiData', bindPath: 'items', auto: true,
+  }));
+  data.children.push(createNode('lazy-column', { state: 'apiData', height: 160, pageSize: 4 }));
+  root.children.push(data);
+  return [root];
+}
+
+function demoShapesMotion() {
+  const root = col(12, 12);
+  root.children.push(title('Formas y motion', 18));
+  const r = row(12);
+  r.children.push(createNode('shape', { kind: 'circle', size: 56, from: '#f5c542', to: '#fb7185', text: 'A' }));
+  r.children.push(createNode('shape', { kind: 'blob', size: 64, from: '#5b9cf5', to: '#22d3ee' }));
+  r.children.push(createNode('shape', { kind: 'hex', size: 56, from: '#a3e635', to: '#2dd4bf' }));
+  r.children.push(createNode('shape', { kind: 'cut', width: 72, height: 48, color: 'primary' }));
+  root.children.push(r);
+  root.children.push(createNode('anim-fade', { pad: 8 }));
+  root.children[root.children.length - 1].children.push(createNode('glass', { pad: 12 }));
+  root.children[root.children.length - 1].children[0].children.push(muted('Glass + fade'));
+  root.children.push(createNode('carousel', { state: 'carouselIdx', animated: true }));
+  const car = root.children[root.children.length - 1];
+  for (const lab of ['Uno', 'Dos', 'Tres']) {
+    const c = createNode('card', { pad: 16 });
+    c.children.push(title(lab, 16));
+    car.children.push(c);
+  }
+  return [root];
+}
+
+
 export const EXAMPLES = [
   // Marketing
   { id: 'landing', name: 'Landing moderna', blurb: 'Hero + CTA + métrica reactiva', tags: ['marketing', 'hero'], build: landing },
@@ -862,4 +1002,9 @@ export const EXAMPLES = [
   { id: 'twin-abaco', name: 'ÁbacoPhy', blurb: 'Gemela contable: inventario·facturas·nómina', tags: ['twin', 'abaco'], build: twinAbacoPhy },
   { id: 'twin-prisma', name: 'PrismaTec Mind', blurb: 'Gemela: Mind·Gen·LispAI·nodo', tags: ['twin', 'prisma'], build: twinPrismaMind },
   { id: 'demo-rest-pulse', name: 'REST · Pulse · Carousel', blurb: 'API consumer, lazy bind, pulse, MCP', tags: ['pro', 'api'], build: demoRestPulse },
+  { id: 'demo-mininode', name: 'MiniNode Lab', blurb: 'Mind · Zyrion · mesh · MCP', tags: ['lab', 'mind'], build: demoMiniNodeLab },
+  { id: 'demo-decentral', name: 'App descentralizada', blurb: 'Feed REST + pulse + peers + mind local', tags: ['lab', 'mesh'], build: demoDecentralApp },
+  { id: 'demo-shop-full', name: 'Nova Shop completa', blurb: 'Drawer · tabs · REST · carousel · avatar', tags: ['pro', 'shop'], build: demoShopFull },
+  { id: 'demo-clean', name: 'Clean Architecture', blurb: 'Capas presentation·domain·data', tags: ['arch'], build: demoCleanArch },
+  { id: 'demo-shapes', name: 'Formas y motion', blurb: 'Shapes · glass · carousel', tags: ['design'], build: demoShapesMotion },
 ];

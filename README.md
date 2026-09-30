@@ -10,9 +10,12 @@ Open http://127.0.0.1:5177/
 
 ## Docs
 
-- **[Manual (ES)](docs/MANUAL.es.md)** — crear, probar y desplegar (emulador, shell móvil, PWA)
-- **[Manual (EN)](docs/MANUAL.en.md)** — create, test, deploy
+- **[Manual 0→100 (ES)](MANUAL.es.md)** — crear apps desde cero hasta PWA
+- **[Manual (EN)](MANUAL.en.md)** — full workflow in English
+- [MiniNode](docs/MININODE.md) — Mind · Zyrion · LispAI · mesh embebidos
+- [Agentes · REST · Pulse](docs/AGENTS_REST_PULSE.md)
 - [LispAI forms](docs/LISPAI_FORMS.md)
+- [Visión](docs/VISION.es.md)
 - [Vision ES](docs/VISION.es.md) · [EN](docs/VISION.en.md)
 
 ## Alset-JS bridge

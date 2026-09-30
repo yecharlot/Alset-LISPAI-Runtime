@@ -269,6 +269,85 @@ export const TEMPLATES = [
       return [c];
     },
   },
+  {
+    id: 'mininode-shell',
+    name: 'MiniNode shell',
+    build() {
+      const c = createNode('column', { gap: 12, pad: 12 });
+      c.children.push(createNode('hero', { title: 'MiniNode', subtitle: 'Mind · Zyrion · mesh' }));
+      c.children.push(createNode('mind-panel', { state: 'mindText', out: 'mindVoice' }));
+      c.children.push(createNode('zyrion-panel', { state: 'zyrionEnv' }));
+      c.children.push(createNode('mesh-peers', { name: 'shell', state: 'peers' }));
+      return [c];
+    },
+  },
+  {
+    id: 'rest-lazy',
+    name: 'REST + Lazy list',
+    build() {
+      const c = createNode('column', { gap: 10, pad: 12 });
+      c.children.push(createNode('text', { text: 'Datos remotos', weight: 'bold', size: 16 }));
+      c.children.push(createNode('loader', { state: '_loading_apiData', text: 'Cargando…' }));
+      c.children.push(createNode('rest-consumer', {
+        method: 'GET', url: '/v1/data', bind: 'apiData', bindPath: 'items', auto: true, loadingKey: '_loading_apiData',
+      }));
+      c.children.push(createNode('lazy-column', { state: 'apiData', height: 240, pageSize: 8 }));
+      return [c];
+    },
+  },
+  {
+    id: 'bottom-nav-app',
+    name: 'App bottom tabs',
+    build() {
+      const tabs = createNode('bottom-tabs', {
+        tabs: 'Inicio,Buscar,Yo', icons: '⌂,⌕,☺', state: 'mainTab',
+      });
+      const a = createNode('column', { gap: 8, pad: 12 });
+      a.children.push(createNode('hero', { title: 'Inicio', subtitle: 'Bottom navigation' }));
+      const b = createNode('column', { gap: 8, pad: 12 });
+      b.children.push(createNode('form-search', { state: 'q', placeholder: 'Buscar…' }));
+      const c = createNode('column', { gap: 8, pad: 12 });
+      c.children.push(createNode('form-login', { title: 'Perfil' }));
+      tabs.children.push(a, b, c);
+      return [tabs];
+    },
+  },
+  {
+    id: 'pulse-agent',
+    name: 'Vista agente + pulse',
+    build() {
+      const c = createNode('column', { gap: 10, pad: 12 });
+      const va = createNode('view-agent', { key: 'home', lifecycle: 'active' });
+      va.children.push(createNode('text', { text: 'Agente key=home', weight: 'bold' }));
+      c.children.push(va);
+      c.children.push(createNode('pulse-consumer', { url: '/api/pulse', keys: 'home', state: 'pulseData' }));
+      c.children.push(createNode('button', { text: 'Simular nav', action: 'tab-home' }));
+      return [c];
+    },
+  },
+  {
+    id: 'shop-shell',
+    name: 'Shell tienda',
+    build() {
+      const root = createNode('column', { gap: 0, pad: 0 });
+      const top = createNode('row', { gap: 10, pad: 12 });
+      top.children.push(createNode('hamburger', { state: 'drawerOpen' }));
+      top.children.push(createNode('text', { text: 'Tienda', weight: 'bold', size: 17 }));
+      root.children.push(top);
+      const dr = createNode('drawer', { title: 'Menú', state: 'drawerOpen', open: false });
+      dr.children.push(createNode('button', { text: 'Catálogo', action: 'tab-Catálogo', icon: '▣' }));
+      dr.children.push(createNode('button', { text: 'Pedidos', action: 'tab-Pedidos', icon: '✎' }));
+      root.children.push(dr);
+      const tabs = createNode('bottom-tabs', { tabs: 'Catálogo,Pedidos', icons: '▣,✎', state: 'mainTab' });
+      const cat = createNode('column', { gap: 8, pad: 12 });
+      cat.children.push(createNode('lazy-column', { state: 'products', height: 200, pageSize: 5 }));
+      const ped = createNode('column', { gap: 8, pad: 12 });
+      ped.children.push(createNode('list', { state: 'orders', empty: 'Sin pedidos' }));
+      tabs.children.push(cat, ped);
+      root.children.push(tabs);
+      return [root];
+    },
+  },,
 ];
 
 export const THEME_COLORS = {
@@ -317,6 +396,7 @@ export const ALSET_ICONS = {
   send: '➤', plus: '+', check: '✓', close: '✕', menu: '☰', map: '⌖',
   image: '⧉', play: '▶', pause: '❚❚', wallet: '◈', chart: '▦',
 };
+
 
 
 export const DEVICES = [
