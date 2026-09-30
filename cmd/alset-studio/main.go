@@ -169,8 +169,8 @@ func main() {
 }`, name, name)
 		_ = os.WriteFile(filepath.Join(appDir, "manifest.webmanifest"), []byte(manifest), 0o644)
 
-		sw := `const C='alset-app-v1';
-self.addEventListener('install',e=>{e.waitUntil(caches.open(C).then(c=>c.addAll(['./','./index.html','./app.alset.json','./manifest.webmanifest','./app-runtime.js'])));self.skipWaiting()});
+		sw := `const C='alset-pwa-v4';
+self.addEventListener('install',e=>{e.waitUntil(caches.open(C).then(c=>c.addAll(['./','./index.html','./app.alset.json','./manifest.webmanifest','./app-runtime.js?v=4'])));self.skipWaiting()});
 self.addEventListener('activate',e=>e.waitUntil(self.clients.claim()));
 self.addEventListener('fetch',e=>{e.respondWith(caches.match(e.request).then(h=>h||fetch(e.request)))});`
 		_ = os.WriteFile(filepath.Join(appDir, "sw.js"), []byte(sw), 0o644)
@@ -200,7 +200,7 @@ header h1{margin:0;font-size:15px;color:#f5c542}
 details{margin:12px;color:#8b93a7;font-size:12px}
 pre{background:#0a0d12;padding:10px;border-radius:10px;overflow:auto;font-size:10px;max-height:30vh}
 </style>
-<script src="app-runtime.js"></script>
+<script src="app-runtime.js?v=4"></script>
 </head><body>
 <header>
   <h1>%s</h1>
@@ -242,7 +242,20 @@ fetch('app.alset.json').then(r=>r.json()).then(j=>{
     window.AlsetAppRuntime.mount(mount,{device:d,tree:j.tree||[],states:j.states||{},interactive:false,mode:'pwa'});
   });
 }).catch(e=>{mount.textContent=String(e);});
-if('serviceWorker' in navigator)navigator.serviceWorker.register('sw.js').catch(function(){});
+if('serviceWorker' in navigator){
+  navigator.serviceWorker.register('sw.js').then(function(reg){
+    if(reg.update) reg.update();
+  }).catch(function(){});
+  // Forzar vista fresca tras deploy (equiv. soft Ctrl+Shift+R del runtime)
+  if(sessionStorage.getItem('alset_pwa_boot')!=='1'){
+    sessionStorage.setItem('alset_pwa_boot','1');
+    if(caches && caches.keys){
+      caches.keys().then(function(keys){
+        return Promise.all(keys.filter(function(k){return k.indexOf('alset-pwa')===0 && k!=='alset-pwa-v4';}).map(function(k){return caches.delete(k);}));
+      }).then(function(){ /* keep first paint */ });
+    }
+  }
+}
 </script>
 </body></html>`, name, name)
 		_ = os.WriteFile(filepath.Join(appDir, "index.html"), []byte(index), 0o644)

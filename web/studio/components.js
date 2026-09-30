@@ -51,19 +51,24 @@ export const CATALOG = [
     { type: 'drawer', label: 'Menú lateral', defaults: { title: 'Menú', state: 'drawerOpen', side: 'left', open: false }, container: true },
     { type: 'side-menu', label: 'Side menu', defaults: { title: 'Navegación', state: 'drawerOpen', side: 'left' }, container: true },
     { type: 'tabs-shell', label: 'Tabs (shell)', defaults: { tabs: 'Inicio,Explorar,Perfil', state: 'tab' }, container: true },
-    { type: 'splash', label: 'Splash', defaults: { title: 'Alset', subtitle: 'Cargando…', duration: 1600, animated: true, autoHide: true, state: 'splash' } },
+    { type: 'splash', label: 'Splash pro', defaults: { title: 'Alset', subtitle: 'Cargando…', duration: 1800, animated: true, autoHide: true, state: 'splash', from: '#0b0e14', to: '#1a1430', icon: 'pulse', spinner: true } },
   ]},
-  { group: 'Alset-JS core', items: [
-    { type: 'icon', label: 'Icon', defaults: { name: 'pulse', size: 24 } },
-    { type: 'fab', label: 'FAB', defaults: { text: '+', action: 'add' } },
+  { group: 'Alset-JS · Chronos', items: [
+    { type: 'icon', label: 'Icon', defaults: { name: 'pulse', size: 24, color: 'primary' } },
+    { type: 'fab', label: 'FAB flotante', defaults: { text: '+', action: 'add' } },
     { type: 'layer', label: 'Layer', defaults: {}, container: true },
-    { type: 'gradient', label: 'Gradient', defaults: { from: '#1a1f2e', to: '#e8c547', pad: 14 }, container: true },
-    { type: 'toast', label: 'Toast', defaults: { text: 'Guardado' } },
+    { type: 'gradient', label: 'Degradado', defaults: { from: '#0b0e14', to: '#f5c542', angle: 135, pad: 16 }, container: true },
+    { type: 'gradient-image', label: 'Imagen + degradado', defaults: { src: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=800&q=60', from: 'transparent', to: 'rgba(0,0,0,0.75)', height: 180, title: 'Cover' }, container: true },
+    { type: 'glass', label: 'Glass / blur', defaults: { pad: 16, gap: 8 }, container: true },
+    { type: 'toast', label: 'Toast', defaults: { text: 'Guardado', duration: 2200 } },
     { type: 'animate', label: 'Animate', defaults: { duration: 400 }, container: true },
     { type: 'video', label: 'Video', defaults: { height: 160 } },
     { type: 'audio', label: 'Audio', defaults: {} },
     { type: 'map', label: 'Mapa', defaults: { height: 160, lat: 23.1, lng: -82.3 } },
-    { type: 'list-stream', label: 'List stream', defaults: { state: 'items', height: 140 } },
+    { type: 'lazy-column', label: 'Lazy Column', defaults: { state: 'feed', height: 280, pageSize: 8, empty: 'Sin ítems' } },
+    { type: 'lazy-row', label: 'Lazy Row', defaults: { state: 'chips', height: 56, pageSize: 6 } },
+    { type: 'router', label: 'Nav Router', defaults: { routes: 'home,catalog,profile', state: 'route' }, container: true },
+    { type: 'theme-chip', label: 'Theme preset', defaults: { theme: 'gold-night' } },
   ]},
 ];
 
@@ -137,6 +142,93 @@ export const TEMPLATES = [
       return [root];
     },
   },
+
+  {
+    id: 'pro-drawer',
+    name: 'Shell drawer pro',
+    build() {
+      const root = createNode('column', { gap: 0, pad: 0 });
+      const top = createNode('row', { gap: 10, pad: 12 });
+      top.children.push(createNode('hamburger', { state: 'drawerOpen' }));
+      top.children.push(createNode('text', { text: 'Alset Hub', size: 17, weight: 'bold', color: 'primary' }));
+      top.children.push(createNode('spacer', { size: 8 }));
+      top.children.push(createNode('icon', { name: 'bell', size: 20 }));
+      root.children.push(top);
+      const drawer = createNode('drawer', { title: 'Navegación', state: 'drawerOpen', side: 'left', open: false });
+      drawer.children.push(createNode('button', { text: 'Inicio', action: 'nav-home' }));
+      drawer.children.push(createNode('button', { text: 'Catálogo', action: 'nav-catalog' }));
+      drawer.children.push(createNode('button', { text: 'Pedidos', action: 'nav-orders' }));
+      drawer.children.push(createNode('button', { text: 'Perfil', action: 'nav-profile' }));
+      drawer.children.push(createNode('button', { text: 'Ajustes', action: 'nav-settings' }));
+      root.children.push(drawer);
+      const body = createNode('column', { gap: 12, pad: 14 });
+      body.children.push(createNode('hero', { title: 'Bienvenido', subtitle: 'Drawer · estados · router listo' }));
+      body.children.push(createNode('metric', { title: 'Sesión', value: 'activa', state: 'sessionLabel', hint: 'alsetState' }));
+      body.children.push(createNode('select', { label: 'Sucursal', state: 'branch', options: 'Centro,Vedado,Playa,Habana del Este' }));
+      body.children.push(createNode('button', { text: 'Continuar', action: 'go' }));
+      root.children.push(body);
+      return [root];
+    },
+  },
+  {
+    id: 'pro-splash',
+    name: 'Splash + onboarding',
+    build() {
+      const root = createNode('column', { gap: 0, pad: 0 });
+      root.children.push(createNode('splash', {
+        title: 'Alset', subtitle: 'Identidad · decisión · memoria',
+        duration: 2000, animated: true, autoHide: true, state: 'splash',
+        from: '#050505', to: '#1a1430', icon: 'pulse', spinner: true,
+      }));
+      const c = createNode('column', { gap: 14, pad: 16 });
+      const g = createNode('gradient', { from: '#12171f', to: '#0b0e14', angle: 160, pad: 18 });
+      g.children.push(createNode('text', { text: 'Empieza en minutos', size: 20, weight: 'bold', color: 'primary' }));
+      g.children.push(createNode('text', { text: 'Plantilla con estados y tema listos', size: 13, color: 'muted' }));
+      c.children.push(g);
+      c.children.push(createNode('button', { text: 'Crear cuenta', action: 'register' }));
+      c.children.push(createNode('button', { text: 'Ya tengo acceso', action: 'login' }));
+      root.children.push(c);
+      return [root];
+    },
+  },
+  {
+    id: 'pro-router',
+    name: 'Router 3 rutas',
+    build() {
+      const root = createNode('column', { gap: 0, pad: 0 });
+      const r = createNode('router', { routes: 'home,shop,me', state: 'route' });
+      const home = createNode('column', { gap: 12, pad: 14 });
+      home.children.push(createNode('text', { text: 'Inicio', size: 18, weight: 'bold', color: 'primary' }));
+      home.children.push(createNode('metric', { title: 'Hoy', value: '12', state: 'today' }));
+      const shop = createNode('column', { gap: 10, pad: 14 });
+      shop.children.push(createNode('text', { text: 'Catálogo', size: 18, weight: 'bold', color: 'primary' }));
+      shop.children.push(createNode('lazy-column', { state: 'products', height: 260, pageSize: 6, empty: 'Sin productos' }));
+      const me = createNode('column', { gap: 10, pad: 14 });
+      me.children.push(createNode('text', { text: 'Perfil', size: 18, weight: 'bold', color: 'primary' }));
+      me.children.push(createNode('form-login', { title: 'Sesión' }));
+      r.children.push(home, shop, me);
+      root.children.push(r);
+      return [root];
+    },
+  },
+  {
+    id: 'pro-glass',
+    name: 'Glass + lazy feed',
+    build() {
+      const c = createNode('column', { gap: 12, pad: 12 });
+      const g = createNode('gradient-image', {
+        src: 'https://images.unsplash.com/photo-1579546929518-9e396f3cc809?w=900&q=60',
+        from: 'rgba(0,0,0,0.1)', to: 'rgba(11,14,20,0.92)', height: 160, title: 'Feed vivo',
+      });
+      c.children.push(g);
+      const glass = createNode('glass', { pad: 14, gap: 8 });
+      glass.children.push(createNode('text', { text: 'Actividad', size: 16, weight: 'bold', color: 'primary' }));
+      glass.children.push(createNode('lazy-column', { state: 'feed', height: 220, pageSize: 8 }));
+      c.children.push(glass);
+      c.children.push(createNode('fab', { text: '+', action: 'compose' }));
+      return [c];
+    },
+  },
   {
     id: 'crud',
     name: 'CRUD fullstack',
@@ -162,6 +254,43 @@ export const THEME_COLORS = {
   text: '#f4f4f5',
 };
 
+/** Presets de tema (Chronos + Studio) */
+export const THEME_PRESETS = {
+  'gold-night': {
+    name: 'Gold Night',
+    primary: '#f5c542', secondary: '#5b9cf5', background: '#0b0e14', surface: '#12171f',
+    text: '#eef1f6', muted: '#8b93a7', success: '#34d399', danger: '#f87171',
+  },
+  'ocean': {
+    name: 'Ocean',
+    primary: '#22d3ee', secondary: '#818cf8', background: '#0a1220', surface: '#111b2e',
+    text: '#e8f1ff', muted: '#7a8ba8', success: '#34d399', danger: '#fb7185',
+  },
+  'forest': {
+    name: 'Forest',
+    primary: '#a3e635', secondary: '#2dd4bf', background: '#0a120e', surface: '#121f18',
+    text: '#ecfdf5', muted: '#86a396', success: '#4ade80', danger: '#f87171',
+  },
+  'rose': {
+    name: 'Rose Ember',
+    primary: '#fb7185', secondary: '#fbbf24', background: '#140a10', surface: '#1f1218',
+    text: '#fff1f2', muted: '#a88b93', success: '#34d399', danger: '#f43f5e',
+  },
+  'chronos': {
+    name: 'Chronos V6',
+    primary: '#FFD700', secondary: '#8B0000', background: '#050505', surface: 'rgba(255,255,255,0.05)',
+    text: '#f5f5f5', muted: '#9ca3af', success: '#34d399', danger: '#ef4444',
+  },
+};
+
+export const ALSET_ICONS = {
+  pulse: '⚡', cpu: '▣', gear: '⚙', home: '⌂', search: '⌕', user: '☺', cart: '▣',
+  heart: '♥', star: '★', chat: '✎', bell: '🔔', lock: '🔒', unlock: '🔓',
+  send: '➤', plus: '+', check: '✓', close: '✕', menu: '☰', map: '⌖',
+  image: '⧉', play: '▶', pause: '❚❚', wallet: '◈', chart: '▦',
+};
+
+
 export const DEVICES = [
   { id: 'mobile', label: 'Móvil', width: 390, height: 720 },
   { id: 'tablet', label: 'Tablet', width: 768, height: 900 },
@@ -174,7 +303,7 @@ export function uid() { return 'n' + (_id++); }
 export function createNode(type, defaults = {}) {
   const meta = CATALOG.flatMap((g) => g.items).find((i) => i.type === type);
   const d = { ...(meta?.defaults || {}), ...defaults };
-  const container = meta?.container || ['column', 'row', 'card', 'form', 'anim-fade', 'anim-slide', 'anim-scale', 'auth-gate', 'gate', 'drawer', 'side-menu', 'tabs-shell'].includes(type);
+  const container = meta?.container || ['column', 'row', 'card', 'form', 'anim-fade', 'anim-slide', 'anim-scale', 'auth-gate', 'gate', 'drawer', 'side-menu', 'tabs-shell', 'gradient', 'gradient-image', 'glass', 'router', 'layer', 'animate'].includes(type);
   return {
     id: uid(),
     type,

@@ -379,11 +379,21 @@
           wrap.style.display = 'none';
           break;
         }
-        wrap.style.display = 'none'; // portal only
+        wrap.style.display = 'none';
         const target = ctx.overlayRoot || ctx.frame || wrap;
         const layer = el('div', 'rt-splash' + (animated ? ' anim' : ''));
+        const from = p.from || THEME.bg;
+        const to = p.to || '#1a1430';
+        layer.style.backgroundImage = `linear-gradient(160deg, ${from}, ${to})`;
+        if (p.icon) {
+          const icons = { pulse:'⚡', cpu:'▣', gear:'⚙', star:'★' };
+          layer.appendChild(el('div', 'rt-splash-icon', icons[p.icon] || '⚡'));
+        }
         layer.appendChild(el('div', 'rt-splash-title', p.title || 'Alset'));
         if (p.subtitle) layer.appendChild(el('div', 'rt-muted', p.subtitle));
+        if (p.spinner !== false && p.spinner !== 'false') {
+          layer.appendChild(el('div', 'rt-spinner'));
+        }
         target.appendChild(layer);
         if (p.autoHide !== false && p.autoHide !== 'false') {
           setTimeout(() => {
@@ -522,11 +532,47 @@
         wrap.appendChild(btn);
         break;
       }
-      case 'select':
-      case 'checkbox':
-      case 'switch':
-        wrap.appendChild(el('div', 'rt-muted', (p.label || n.type) + ' · ' + (p.options || p.state || '')));
+      case 'select': {
+        if (p.label) wrap.appendChild(el('div', 'rt-muted', p.label));
+        const sel = document.createElement('select');
+        sel.className = 'rt-select';
+        const opts = String(p.options || 'A,B,C').split(',').map((s) => s.trim()).filter(Boolean);
+        const stKey = p.state || 'choice';
+        let cur = ctx.state?.[stKey];
+        if (cur == null || cur === '') cur = opts[0] || '';
+        opts.forEach((o) => {
+          const opt = document.createElement('option');
+          opt.value = o;
+          opt.textContent = o;
+          if (o === String(cur)) opt.selected = true;
+          sel.appendChild(opt);
+        });
+        sel.onchange = () => {
+          if (ctx.setState) ctx.setState(stKey, sel.value);
+          ctx.emit && ctx.emit('change', { state: stKey, value: sel.value });
+          log && log('select ' + stKey + '=' + sel.value);
+        };
+        wrap.appendChild(sel);
         break;
+      }
+      case 'checkbox':
+      case 'switch': {
+        const stKey = p.state || 'flag';
+        const row = el('div', 'rt-row');
+        row.style.gap = '10px';
+        const lab = el('label', 'rt-muted', p.label || n.type);
+        const input = document.createElement('input');
+        input.type = 'checkbox';
+        input.checked = !!ctx.state?.[stKey];
+        input.onchange = () => {
+          if (ctx.setState) ctx.setState(stKey, input.checked);
+          ctx.remount && ctx.remount();
+        };
+        row.appendChild(input);
+        row.appendChild(lab);
+        wrap.appendChild(row);
+        break;
+      }
       case 'auth-gate':
       case 'gate': {
         addClass(wrap, 'rt-card');
@@ -537,6 +583,173 @@
         if (!ok) {
           wrap.appendChild(el('div', 'rt-muted', p.deny || 'Requiere rol: ' + role));
         } else kids(wrap);
+        break;
+      }
+      case 'icon': {
+        const name = p.name || 'pulse';
+        const icons = { pulse:'⚡', cpu:'▣', gear:'⚙', home:'⌂', search:'⌕', user:'☺', bell:'🔔', send:'➤', plus:'+', check:'✓', wallet:'◈', chart:'▦', star:'★', lock:'🔒', menu:'☰' };
+        const ic = el('span', 'rt-icon', icons[name] || '◇');
+        ic.style.fontSize = (Number(p.size) || 22) + 'px';
+        if (p.color) ic.style.color = colorToken(p.color) || p.color;
+        wrap.appendChild(ic);
+        break;
+      }
+      case 'gradient': {
+        const from = p.from || '#12171f';
+        const to = p.to || THEME.primary;
+        const angle = Number(p.angle) || 135;
+        addClass(wrap, 'rt-gradient');
+        wrap.style.backgroundImage = `linear-gradient(${angle}deg, ${from}, ${to})`;
+        wrap.style.padding = (Number(p.pad) || 14) + 'px';
+        wrap.style.borderRadius = '14px';
+        wrap.style.gap = '8px';
+        wrap.style.display = 'flex';
+        wrap.style.flexDirection = 'column';
+        kids(wrap);
+        break;
+      }
+      case 'gradient-image': {
+        addClass(wrap, 'rt-grad-img');
+        wrap.style.position = 'relative';
+        wrap.style.height = (Number(p.height) || 160) + 'px';
+        wrap.style.borderRadius = '14px';
+        wrap.style.overflow = 'hidden';
+        if (p.src) {
+          const img = document.createElement('img');
+          img.src = p.src;
+          img.alt = p.title || '';
+          img.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;object-fit:cover';
+          wrap.appendChild(img);
+        }
+        const overlay = el('div', 'rt-grad-img-overlay');
+        const from = p.from || 'transparent';
+        const to = p.to || 'rgba(0,0,0,0.8)';
+        overlay.style.backgroundImage = `linear-gradient(to top, ${to}, ${from})`;
+        if (p.title) {
+          const tit = el('div', 'rt-hero-title', p.title);
+          tit.style.position = 'relative';
+          tit.style.zIndex = '1';
+          overlay.appendChild(tit);
+        }
+        kids(overlay);
+        wrap.appendChild(overlay);
+        break;
+      }
+      case 'glass': {
+        addClass(wrap, 'rt-glass', 'rt-col');
+        if (p.pad) wrap.style.padding = Number(p.pad) + 'px';
+        if (p.gap) wrap.style.gap = Number(p.gap) + 'px';
+        kids(wrap);
+        break;
+      }
+      case 'fab':
+      case 'floating-button': {
+        const b = el('button', 'rt-fab', p.text || '+');
+        b.type = 'button';
+        b.onclick = () => {
+          log && log('fab:' + (p.action || 'click'));
+          ctx.emit && ctx.emit('action', { action: p.action });
+        };
+        wrap.appendChild(b);
+        wrap.style.display = 'flex';
+        wrap.style.justifyContent = 'flex-end';
+        break;
+      }
+      case 'lazy-column':
+      case 'lazy-row': {
+        const stKey = p.state || 'items';
+        let items = ctx.state?.[stKey];
+        if (!Array.isArray(items) || !items.length) {
+          // seed demo data for studio
+          const n = Number(p.pageSize) || 8;
+          items = Array.from({ length: n }, (_, i) => ({
+            id: i + 1,
+            title: (p.itemLabel || 'Ítem') + ' ' + (i + 1),
+            subtitle: 'alsetState · página demo',
+          }));
+          if (ctx.setState) ctx.setState(stKey, items);
+        }
+        const isRow = n.type === 'lazy-row';
+        addClass(wrap, isRow ? 'rt-lazy-row' : 'rt-lazy-col');
+        wrap.style.height = (Number(p.height) || (isRow ? 56 : 240)) + 'px';
+        wrap.style.overflow = 'auto';
+        wrap.style.display = 'flex';
+        wrap.style.flexDirection = isRow ? 'row' : 'column';
+        wrap.style.gap = '8px';
+        if (!items.length) {
+          wrap.appendChild(el('div', 'rt-muted', p.empty || 'Sin ítems'));
+        } else {
+          items.forEach((it, i) => {
+            const card = el('div', isRow ? 'rt-chip' : 'rt-card');
+            if (typeof it === 'string') card.textContent = it;
+            else {
+              card.appendChild(el('div', '', it.title || it.name || ('#' + (it.id || i))));
+              if (it.subtitle) card.appendChild(el('div', 'rt-muted', it.subtitle));
+            }
+            wrap.appendChild(card);
+          });
+        }
+        wrap.onscroll = () => {
+          const nearEnd = isRow
+            ? wrap.scrollLeft + wrap.clientWidth >= wrap.scrollWidth - 40
+            : wrap.scrollTop + wrap.clientHeight >= wrap.scrollHeight - 40;
+          if (nearEnd && ctx.setState) {
+            const more = Array.from({ length: Number(p.pageSize) || 4 }, (_, i) => ({
+              id: items.length + i + 1,
+              title: (p.itemLabel || 'Ítem') + ' ' + (items.length + i + 1),
+              subtitle: 'cargado al scroll',
+            }));
+            const next = items.concat(more);
+            ctx.setState(stKey, next);
+            ctx.remount && ctx.remount();
+            log && log('lazy load +' + more.length);
+          }
+        };
+        break;
+      }
+      case 'router': {
+        const stKey = p.state || 'route';
+        const routes = String(p.routes || 'home,shop,me').split(',').map((s) => s.trim()).filter(Boolean);
+        let cur = ctx.state?.[stKey] || routes[0];
+        if (!routes.includes(cur)) cur = routes[0];
+        addClass(wrap, 'rt-col');
+        wrap.style.gap = '10px';
+        const bar = el('div', 'rt-row rt-tabbar');
+        routes.forEach((r, i) => {
+          const b = el('button', 'rt-tab' + (r === cur ? ' active' : ''), r);
+          b.type = 'button';
+          b.onclick = () => {
+            if (ctx.setState) ctx.setState(stKey, r);
+            ctx.remount && ctx.remount();
+            log && log('route:' + r);
+          };
+          bar.appendChild(b);
+        });
+        wrap.appendChild(bar);
+        const idx = Math.max(0, routes.indexOf(cur));
+        const child = (n.children || [])[idx];
+        const pane = el('div', 'rt-col');
+        if (child) paintNode(pane, child, ctx, depth + 1);
+        else pane.appendChild(el('div', 'rt-muted', 'Ruta vacía: ' + cur));
+        wrap.appendChild(pane);
+        break;
+      }
+      case 'toast': {
+        const b = el('button', 'rt-btn', 'Mostrar toast');
+        b.type = 'button';
+        b.onclick = () => {
+          const toast = el('div', 'rt-toast');
+          toast.textContent = p.text || 'Listo';
+          const host = ctx.overlayRoot || ctx.frame || wrap;
+          host.appendChild(toast);
+          setTimeout(() => { try { toast.remove(); } catch (_) {} }, Number(p.duration) || 2200);
+        };
+        wrap.appendChild(b);
+        break;
+      }
+      case 'theme-chip': {
+        const name = p.theme || 'gold-night';
+        wrap.appendChild(el('div', 'rt-badge', 'theme · ' + name));
         break;
       }
       case 'column':
@@ -577,7 +790,7 @@
     if (prev) prev.remove();
     const s = doc.createElement('style');
     s.id = 'alset-rt-css';
-    s.setAttribute('data-v', '2');
+    s.setAttribute('data-v', '4');
     s.textContent = `
 .rt-frame{margin:0 auto;border:1px solid ${THEME.line};border-radius:20px;background:#0a0d12;overflow:hidden;position:relative;touch-action:pan-y;isolation:isolate;contain:layout style paint}
 .rt-label{font-size:10px;color:${THEME.muted};padding:8px 12px;border-bottom:1px solid ${THEME.line};flex-shrink:0}
@@ -629,6 +842,21 @@
 @keyframes rtSlide{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
 @keyframes rtScale{from{opacity:0;transform:scale(.94)}to{opacity:1;transform:none}}
 @keyframes rtPop{from{opacity:0;transform:scale(.85)}to{opacity:1;transform:none}}
+
+.rt-select{width:100%;padding:10px 12px;border-radius:10px;border:1px solid #2a3344;background:#0a0d12;color:#eef1f6;font-size:14px;box-sizing:border-box}
+.rt-icon{display:inline-flex;align-items:center;justify-content:center;line-height:1}
+.rt-glass{background:rgba(18,23,31,0.55);backdrop-filter:blur(18px) saturate(160%);-webkit-backdrop-filter:blur(18px) saturate(160%);border:1px solid rgba(255,255,255,0.08);border-radius:16px;box-shadow:0 8px 28px rgba(0,0,0,0.35)}
+.rt-gradient{color:#eef1f6}
+.rt-grad-img{position:relative}
+.rt-grad-img-overlay{position:absolute;inset:0;display:flex;flex-direction:column;justify-content:flex-end;padding:14px;box-sizing:border-box}
+.rt-fab{appearance:none;border:0;width:52px;height:52px;border-radius:50%;background:${THEME.primary};color:#111;font-size:24px;font-weight:800;cursor:pointer;box-shadow:0 8px 24px rgba(0,0,0,0.4)}
+.rt-lazy-col,.rt-lazy-row{border:1px solid ${THEME.line};border-radius:12px;padding:8px;background:#0a0d12}
+.rt-chip{flex:0 0 auto;padding:10px 14px;border-radius:999px;background:${THEME.card};border:1px solid ${THEME.line};font-size:13px;white-space:nowrap}
+.rt-toast{position:absolute;left:50%;bottom:24px;transform:translateX(-50%);background:${THEME.card};border:1px solid ${THEME.line};color:${THEME.text};padding:12px 18px;border-radius:999px;z-index:80;font-size:13px;font-weight:600;box-shadow:0 8px 24px rgba(0,0,0,0.4);white-space:nowrap}
+.rt-splash-icon{font-size:40px;margin-bottom:8px}
+.rt-spinner{width:28px;height:28px;border:3px solid rgba(255,255,255,0.15);border-top-color:${THEME.primary};border-radius:50%;margin-top:16px;animation:rtSpin .7s linear infinite}
+@keyframes rtSpin{to{transform:rotate(360deg)}}
+
 .rt-gesture-hint{position:absolute;bottom:8px;left:8px;right:8px;font-size:10px;color:${THEME.muted};pointer-events:none;opacity:.7}
 `;
     doc.head.appendChild(s);

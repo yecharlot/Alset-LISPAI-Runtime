@@ -477,6 +477,96 @@ function healthcareLite() {
 }
 
 /* ── catálogo exportado ──────────────────────────────── */
+
+
+/* ── Pro: drawer profesional con estados ─────────────── */
+function proDrawerApp() {
+  const root = col(0, 0);
+  const top = row(10);
+  top.props.pad = 12;
+  top.children.push(createNode('hamburger', { state: 'drawerOpen' }));
+  top.children.push(title('Nova Commerce', 17));
+  top.children.push(createNode('icon', { name: 'bell', size: 18, color: 'primary' }));
+  root.children.push(top);
+  const dr = createNode('drawer', { title: 'Menú', state: 'drawerOpen', side: 'left', open: false });
+  ['Inicio', 'Catálogo', 'Pedidos', 'Clientes', 'Ajustes'].forEach((lab, i) => {
+    dr.children.push(btn(lab, 'nav-' + i));
+  });
+  root.children.push(dr);
+  const body = col(12, 14);
+  body.children.push(createNode('hero', { title: 'Panel del día', subtitle: 'Estados alset · listo para cablear API' }));
+  const kpis = row(10);
+  kpis.children.push(metric('Ventas', '$2.4k', 'sales', 'hoy'));
+  kpis.children.push(metric('Pedidos', '18', 'orders', 'abiertos'));
+  body.children.push(kpis);
+  body.children.push(createNode('select', { label: 'Almacén', state: 'warehouse', options: 'Central,Este,Oeste' }));
+  body.children.push(createNode('glass', { pad: 12, gap: 8 }));
+  body.children[body.children.length - 1].children.push(title('Atajos', 14));
+  body.children[body.children.length - 1].children.push(muted('El drawer y el select escriben en state'));
+  const actions = row(8);
+  actions.children.push(btn('Nuevo pedido', 'new-order'), btn('Sincronizar', 'sync'));
+  body.children.push(actions);
+  root.children.push(body);
+  return [root];
+}
+
+function proRouterShop() {
+  const root = col(0, 0);
+  const r = createNode('router', { routes: 'home,shop,cart,me', state: 'route' });
+  const home = col(12, 14);
+  home.children.push(createNode('gradient', { from: '#0b0e14', to: '#1a1430', angle: 145, pad: 16 }));
+  home.children[0].children.push(title('Hola', 20));
+  home.children[0].children.push(muted('Tienda demo con router de 4 rutas'));
+  home.children.push(metric('Destacados', '24', 'feat', 'en catálogo'));
+  const shop = col(10, 12);
+  shop.children.push(title('Catálogo', 17));
+  shop.children.push(createNode('form-search', { state: 'q', placeholder: 'Buscar producto…' }));
+  shop.children.push(createNode('lazy-column', { state: 'products', height: 280, pageSize: 6, itemLabel: 'Producto' }));
+  const cart = col(10, 12);
+  cart.children.push(title('Carrito', 17));
+  cart.children.push(createNode('list', { state: 'cart', empty: 'Carrito vacío' }));
+  cart.children.push(btn('Pagar', 'checkout'));
+  const me = col(10, 12);
+  me.children.push(title('Cuenta', 17));
+  me.children.push(createNode('form-login', { title: 'Entrar' }));
+  r.children.push(home, shop, cart, me);
+  root.children.push(r);
+  return [root];
+}
+
+function proFeedGlass() {
+  const c = col(12, 12);
+  c.children.push(createNode('gradient-image', {
+    src: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=900&q=60',
+    from: 'rgba(0,0,0,0)', to: 'rgba(11,14,20,0.9)', height: 150, title: 'Alset Feed',
+  }));
+  const glass = createNode('glass', { pad: 14, gap: 10 });
+  glass.children.push(title('Timeline', 16));
+  glass.children.push(createNode('lazy-column', { state: 'feed', height: 240, pageSize: 8, itemLabel: 'Post' }));
+  c.children.push(glass);
+  c.children.push(createNode('lazy-row', { state: 'tags', height: 52, pageSize: 8, itemLabel: 'Tag' }));
+  c.children.push(createNode('fab', { text: '+', action: 'compose' }));
+  return [c];
+}
+
+function proOnboard() {
+  const root = col(0, 0);
+  root.children.push(createNode('splash', {
+    title: 'Chronos', subtitle: 'Alset Pulse · listo',
+    duration: 1600, autoHide: true, state: 'splash',
+    from: '#050505', to: '#1a0a20', icon: 'pulse', spinner: true, animated: true,
+  }));
+  const c = col(14, 16);
+  c.children.push(title('Configura tu negocio', 18));
+  c.children.push(createNode('input', { placeholder: 'Nombre del negocio', state: 'bizName' }));
+  c.children.push(createNode('select', { label: 'Rubro', state: 'rubro', options: 'Comercio,Servicios,Alimentos,Tech' }));
+  c.children.push(createNode('switch', { label: 'Recibir avisos', state: 'notify' }));
+  c.children.push(btn('Continuar', 'onboard-next'));
+  root.children.push(c);
+  return [root];
+}
+
+
 export const EXAMPLES = [
   // Marketing
   { id: 'landing', name: 'Landing moderna', blurb: 'Hero + CTA + métrica reactiva', tags: ['marketing', 'hero'], build: landing },
@@ -512,4 +602,9 @@ export const EXAMPLES = [
   { id: 'crm', name: 'CRM / leads', blurb: 'POST /v1/data + tabla', tags: ['backend', 'crud'], build: contactCrm },
   { id: 'motion', name: 'Motion UI', blurb: 'Fade · slide · scale', tags: ['motion'], build: motionShowcase },
   { id: 'mobile', name: 'App móvil first', blurb: 'Splash · drawer · tabs · gestos', tags: ['mobile', 'pwa'], build: mobileApp },
+  // Pro Chronos
+  { id: 'pro-drawer', name: 'Drawer profesional', blurb: 'Shell con menú, KPIs y select con state', tags: ['pro', 'drawer', 'mobile'], build: proDrawerApp },
+  { id: 'pro-router', name: 'Tienda + router', blurb: '4 rutas · lazy catálogo · login', tags: ['pro', 'router', 'shop'], build: proRouterShop },
+  { id: 'pro-feed', name: 'Feed glass', blurb: 'Cover degradado · lazy · FAB', tags: ['pro', 'glass', 'feed'], build: proFeedGlass },
+  { id: 'pro-onboard', name: 'Onboarding Chronos', blurb: 'Splash pro · select · switch', tags: ['pro', 'onboard'], build: proOnboard },
 ];
