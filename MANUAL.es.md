@@ -252,3 +252,15 @@ Guía componente a componente (cuándo usarlo + ejemplos):
 ## alsetState + LispAI fusionados
 
 → **[docs/ALSETSTATE_LISPAI.es.md](docs/ALSETSTATE_LISPAI.es.md)**
+
+
+## Paneles Estados y Mind · Zyrion
+
+En el panel derecho **Lógica**:
+
+- **Estados**: lista la memoria `alsetState`, alta manual de claves, limpiar, refrescar.
+- **Mind · Zyrion**: latido de texto y evaluación ternaria (0/1/2) sin salir del Studio.
+
+La galería de **Iconos** está bajo Colores en el toolbox izquierdo (clic inserta en el canvas).
+
+Ejemplos nuevos: *Estados y botones*, *CRUD + tabla*, *Navegación tabs*, *Galería iconos UI*, *Mind · Zyrion UI*, *Eventos · drawer · nav*.

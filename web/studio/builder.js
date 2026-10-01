@@ -452,6 +452,7 @@ export function bootBuilder() {
   renderToolbox();
   renderTemplates();
   renderColors();
+  renderIcons();
 
   const canvas = $('canvas');
   canvas.addEventListener('dragover', (e) => e.preventDefault());
@@ -571,6 +572,119 @@ export function bootBuilder() {
     refresh();
     log('LispAI aplicado · mutaciones: ' + n);
   };
+  
+  // ——— Panel Estados (alsetState) ———
+  function paintStatesPanel() {
+    const box = $('states-table');
+    if (!box) return;
+    const dump = stateDump();
+    const keys = Object.keys(dump);
+    if (!keys.length) {
+      box.innerHTML = '<p class="logic-help">Sin estados aún. Crea uno abajo o usa un input con prop state.</p>';
+      return;
+    }
+    box.innerHTML = keys.map((k) => {
+      let v;
+      try { v = JSON.stringify(dump[k]); } catch { v = String(dump[k]); }
+      return '<div class="state-row"><span class="sk">' + k + '</span><span class="sv">' + v + '</span>' +
+        '<button type="button" class="btn btn-ghost state-del" data-k="' + k + '">×</button></div>';
+    }).join('');
+    box.querySelectorAll('.state-del').forEach((b) => {
+      b.onclick = () => {
+        stateSet(b.getAttribute('data-k'), undefined);
+        // remove by setting null and refresh dump view
+        try {
+          const st = stateDump();
+          delete st[b.getAttribute('data-k')];
+        } catch (_) {}
+        paintStatesPanel();
+        log('estado eliminado de vista: ' + b.getAttribute('data-k'));
+      };
+    });
+  }
+  $('btn-states-refresh')?.addEventListener('click', () => {
+    paintStatesPanel();
+    log('estados · ' + JSON.stringify(stateDump()));
+  });
+  $('btn-states-clear')?.addEventListener('click', () => {
+    clearAlsetStates();
+    paintStatesPanel();
+    log('estados limpiados');
+  });
+  $('btn-state-set')?.addEventListener('click', () => {
+    const k = ($('state-new-key')?.value || '').trim();
+    let v = $('state-new-val')?.value;
+    if (!k) return;
+    if (v === 'true') v = true;
+    else if (v === 'false') v = false;
+    else if (v !== '' && !Number.isNaN(Number(v))) v = Number(v);
+    else {
+      try { v = JSON.parse(v); } catch (_) {}
+    }
+    stateSet(k, v);
+    paintStatesPanel();
+    log('set-state ' + k + ' = ' + JSON.stringify(v));
+    try { paintPreviewOnly(); } catch (_) {}
+  });
+  // refresh states when switching to tab
+  document.querySelectorAll('.logic-tab').forEach((tab) => {
+    tab.addEventListener('click', () => {
+      if (tab.getAttribute('data-logic') === 'states') paintStatesPanel();
+    });
+  });
+
+  // ——— Mind · Zyrion ———
+  async function mindTick() {
+    const text = $('mind-input')?.value || '';
+    const out = $('mind-out');
+    try {
+      let j;
+      if (window.AlsetMiniNode && window.AlsetMiniNode.mindTick) {
+        j = window.AlsetMiniNode.mindTick(text);
+      } else {
+        const r = await fetch('/api/mind/tick', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ text }),
+        });
+        j = await r.json();
+      }
+      if (out) out.textContent = JSON.stringify(j, null, 2);
+      log('mind · ' + (j.voice || JSON.stringify(j)));
+    } catch (e) {
+      if (out) out.textContent = String(e.message || e);
+      log('mind err: ' + e.message);
+    }
+  }
+  async function zyrionEval() {
+    const env = {
+      A: Number($('zyr-a')?.value || 0),
+      B: Number($('zyr-b')?.value || 0),
+      C: Number($('zyr-c')?.value || 0),
+    };
+    const out = $('zyrion-out');
+    try {
+      let j;
+      if (window.AlsetMiniNode && window.AlsetMiniNode.evalZyrion) {
+        j = window.AlsetMiniNode.evalZyrion(env, { 0: 'SEGUIR', 1: 'MATIZAR', 2: 'SUMIDERO' });
+      } else {
+        const r = await fetch('/api/zyrion', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ env, labels: { '0': 'SEGUIR', '1': 'MATIZAR', '2': 'SUMIDERO' } }),
+        });
+        j = await r.json();
+      }
+      if (out) out.textContent = JSON.stringify(j, null, 2);
+      log('zyrion · t=' + (j.ternary ?? j.resultado) + ' ' + (j.label || ''));
+    } catch (e) {
+      if (out) out.textContent = String(e.message || e);
+    }
+  }
+  $('btn-mind-tick')?.addEventListener('click', mindTick);
+  $('btn-zyrion-eval')?.addEventListener('click', zyrionEval);
+
+
   $('btn-sync-lisp').onclick = () => {
     lispDirty = false;
     $('lisp').value = treeToLisp(tree);

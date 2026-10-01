@@ -7,7 +7,7 @@
   <link rel="stylesheet" href="/css/studio.css" />
   <script src="/runtime/alset-lisp-engine.js"></script>
   <script src="/runtime/mininode.js"></script>
-  <script src="/runtime/app-runtime.js?v=9"></script>
+  <script src="/runtime/app-runtime.js?v=11"></script>
 <style>
 .prop-select,.field-row .rt-input{width:100%;margin-top:4px}
 .field-row{display:flex;flex-direction:column;gap:4px}
@@ -67,8 +67,8 @@
         <h3>Colores</h3>
         <div id="colors" class="colors"></div>
         <h3>Iconos</h3>
-        <p class="pane-hint">Clic = insertar en el canvas</p>
-        <div id="icons" class="icon-palette"></div>
+        <p class="pane-hint">Clic para insertar en el canvas</p>
+        <div id="icons" class="icon-palette" aria-label="Galería de iconos"></div>
       </div>
     </aside>
     <div class="splitter v" data-split="left" title="Arrastrar para redimensionar"></div>
@@ -100,6 +100,8 @@
       <div class="pane-body pane-logic">
         <div class="logic-tabs" role="tablist">
           <button type="button" class="logic-tab active" data-logic="props">Propiedades</button>
+          <button type="button" class="logic-tab" data-logic="states">Estados</button>
+          <button type="button" class="logic-tab" data-logic="mind">Mind · Zyrion</button>
           <button type="button" class="logic-tab" data-logic="lisp">LispAI</button>
           <button type="button" class="logic-tab" data-logic="backend">Backend</button>
         </div>
@@ -107,6 +109,50 @@
         <div id="logic-props" class="logic-panel active">
           <p class="logic-help">Selecciona un nodo en el canvas para editar props (texto, state, url…).</p>
           <div id="props" class="props"></div>
+        </div>
+
+        
+        <div id="logic-states" class="logic-panel">
+          <p class="logic-help">
+            Memoria <b>alsetState</b> de la app. Misma caja que LispAI
+            <code>(get-state)</code> / <code>(set-state)</code> y que inputs/listas.
+          </p>
+          <div class="row-btns">
+            <button type="button" class="btn btn-blue" id="btn-states-refresh">Refrescar</button>
+            <button type="button" class="btn btn-ghost" id="btn-states-clear">Limpiar estados</button>
+          </div>
+          <div class="state-add">
+            <input id="state-new-key" class="rt-input" placeholder="nombre (ej. contador)" />
+            <input id="state-new-val" class="rt-input" placeholder="valor (ej. 0)" />
+            <button type="button" class="btn btn-gold" id="btn-state-set">Guardar</button>
+          </div>
+          <div id="states-table" class="states-table"></div>
+          <p class="logic-help">Atajos Lisp: <code>(set-state "k" 1)</code> · <code>(incf-state "k")</code> · <code>(states)</code></p>
+        </div>
+
+        <div id="logic-mind" class="logic-panel">
+          <p class="logic-help">
+            <b>Mind</b> (latido ternario) y <b>Zyrion</b> (0 seguir · 1 matizar · 2 sumidero absorbente).
+            Mini-nodo embebido o API del Studio.
+          </p>
+          <h3>Mind · tick</h3>
+          <textarea id="mind-input" class="lisp" rows="2" placeholder="Escribe un mensaje… ej. hola / quién eres / me llamo Ana"></textarea>
+          <div class="row-btns">
+            <button type="button" class="btn btn-blue" id="btn-mind-tick">Latido Mind</button>
+          </div>
+          <pre id="mind-out" class="logic-out">—</pre>
+          <h3>Zyrion · evaluar</h3>
+          <p class="logic-help">Entradas 0–1 (o 0/1/2). El <b>2</b> absorbe el resultado.</p>
+          <div class="zyrion-grid">
+            <label>A <input id="zyr-a" class="rt-input" type="number" step="0.1" value="0.2" /></label>
+            <label>B <input id="zyr-b" class="rt-input" type="number" step="0.1" value="0.5" /></label>
+            <label>C <input id="zyr-c" class="rt-input" type="number" step="0.1" value="0.1" /></label>
+          </div>
+          <div class="row-btns">
+            <button type="button" class="btn btn-blue" id="btn-zyrion-eval">Evaluar Zyrion</button>
+          </div>
+          <pre id="zyrion-out" class="logic-out">—</pre>
+          <p class="logic-help">También: componente <code>mind-panel</code> / <code>zyrion-panel</code> en el canvas, o <code>POST /api/mind/tick</code> · <code>POST /api/zyrion</code>.</p>
         </div>
 
         <div id="logic-lisp" class="logic-panel">

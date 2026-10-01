@@ -40,3 +40,10 @@ Preview uses native `alsetState`, `Column`/`Row`/`Text`/`Button`/`Input`/`Card`.
 ## Deploy
 
 **Desplegar PWA** → `/apps/<name>/` + new browser tab with the final app.
+
+
+### Lógica avanzada
+- Panel **Estados** (alsetState)
+- Panel **Mind · Zyrion**
+- Galería **Iconos** en toolbox
+- Docs: [docs/README.md](docs/README.md)

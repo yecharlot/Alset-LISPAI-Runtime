@@ -401,3 +401,41 @@ body.studio-full {
   white-space: nowrap;
 }
 .pane-hint { font-size: 11px; color: var(--muted); margin: 0 0 6px; }
+
+/* Estados + Mind panels */
+.state-add {
+  display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0 12px;
+}
+.state-add .rt-input { flex: 1; min-width: 100px; font-size: 12px; padding: 6px 8px; }
+.states-table {
+  display: flex; flex-direction: column; gap: 6px;
+  max-height: 280px; overflow: auto; margin-bottom: 8px;
+}
+.state-row {
+  display: grid; grid-template-columns: 1fr 1fr auto;
+  gap: 6px; align-items: center;
+  padding: 6px 8px; background: var(--panel2); border-radius: 8px;
+  border: 1px solid var(--line); font-size: 12px;
+}
+.state-row .sk { color: var(--gold); font-weight: 600; word-break: break-all; }
+.state-row .sv { color: var(--muted); word-break: break-all; font-family: ui-monospace, monospace; font-size: 11px; }
+.logic-out {
+  background: #0a0b10; border: 1px solid var(--line); border-radius: 8px;
+  padding: 10px; font-size: 11px; max-height: 160px; overflow: auto;
+  white-space: pre-wrap; color: var(--text); margin: 6px 0 12px;
+}
+.zyrion-grid {
+  display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin: 8px 0;
+}
+.zyrion-grid label { font-size: 11px; color: var(--muted); display: flex; flex-direction: column; gap: 4px; }
+.logic-tabs { flex-wrap: wrap; }
+.logic-tab { font-size: 11px; padding: 6px 8px; }
+/* Icon palette always visible in left pane */
+#icons.icon-palette {
+  display: grid !important;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 6px;
+  max-height: 260px;
+  overflow: auto;
+  min-height: 80px;
+}

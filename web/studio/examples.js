@@ -1090,6 +1090,100 @@ function demoLiveStudio() {
 }
 
 
+
+
+/* ── Estado · eventos · CRUD · iconos (tutorial) ───────── */
+function demoStateLogic() {
+  const c = col(14, 12);
+  c.children.push(createNode('state', { name: 'contador', value: '0' }));
+  c.children.push(title('Estados + botones', 18));
+  c.children.push(muted('El metric lee contador; los botones usan setState / action'));
+  c.children.push(createNode('metric', { title: 'Contador', value: '0', state: 'contador', hint: 'alsetState' }));
+  const r = row(8);
+  r.children.push(createNode('button', { text: '+1', action: 'inc', setState: 'contador', setValue: '1' }));
+  r.children.push(createNode('button', { text: 'Reset', setState: 'contador', setValue: '0' }));
+  r.children.push(createNode('button', { text: 'Tab Pedidos', action: 'tab-Pedidos' }));
+  c.children.push(r);
+  c.children.push(createNode('input', { placeholder: 'Tu nombre', state: 'nombre' }));
+  c.children.push(createNode('text', { text: 'Escribe arriba; Lisp: (get-state "nombre")', size: 12, color: 'muted' }));
+  return [c];
+}
+
+function demoCrudList() {
+  const c = col(14, 12);
+  c.children.push(title('CRUD lista', 18));
+  c.children.push(createNode('rest-consumer', {
+    url: '/v1/data', method: 'GET', state: 'items', auto: true, bind: 'items',
+  }));
+  c.children.push(createNode('loader', { label: 'Cargando…', state: '_loading_items' }));
+  c.children.push(createNode('table', { state: 'items', columns: 'id,name' }));
+  c.children.push(createNode('list', { state: 'items', empty: 'Sin filas — prueba POST' }));
+  const form = row(8);
+  form.children.push(createNode('input', { placeholder: 'nombre', state: 'nuevoNombre' }));
+  form.children.push(createNode('button', { text: 'Crear (POST)', action: 'submit' }));
+  c.children.push(form);
+  c.children.push(createNode('api-post', { url: '/v1/data', state: 'nuevoNombre', event: 'submit' }));
+  return [c];
+}
+
+function demoNavTabs() {
+  const shell = createNode('bottom-tabs', {
+    tabs: 'Inicio,Lista,Yo', icons: '⌂,☰,☺', state: 'mainTab',
+  });
+  const a = col(12, 10);
+  a.children.push(title('Inicio', 16));
+  a.children.push(muted('Navegación por state mainTab'));
+  a.children.push(createNode('button', { text: 'Ir a Lista', action: 'tab-Lista' }));
+  const b = col(12, 10);
+  b.children.push(title('Lista', 16));
+  b.children.push(createNode('list', { state: 'items', empty: 'Vacío' }));
+  b.children.push(createNode('button', { text: 'Volver', action: 'tab-Inicio' }));
+  const d = col(12, 10);
+  d.children.push(title('Perfil', 16));
+  d.children.push(createNode('avatar', { text: 'U' }));
+  d.children.push(createNode('role-badge', {}));
+  shell.children.push(a, b, d);
+  return [shell];
+}
+
+function demoIconsGallery() {
+  const c = col(12, 10);
+  c.children.push(title('Iconos en UI', 18));
+  c.children.push(muted('También: panel Toolbox → Iconos'));
+  const r = row(12);
+  ['home', 'search', 'cart', 'bell', 'settings', 'heart'].forEach((name) => {
+    r.children.push(createNode('icon', { name, size: 28, color: 'primary' }));
+  });
+  c.children.push(r);
+  c.children.push(createNode('fab', { icon: 'plus', action: 'add' }));
+  return [c];
+}
+
+function demoMindZyrionUI() {
+  const c = col(14, 12);
+  c.children.push(title('Mind · Zyrion en canvas', 18));
+  c.children.push(createNode('mind-panel', { title: 'Mind lite' }));
+  c.children.push(createNode('zyrion-panel', { title: 'Zyrion' }));
+  c.children.push(createNode('zyrion-filter', { state: 'filtro', label: 'Filtro ternario' }));
+  return [c];
+}
+
+function demoEventsKitchen() {
+  const c = col(12, 10);
+  c.children.push(createNode('hero', { title: 'Cocina de eventos', subtitle: 'action · setState · tabs · drawer' }));
+  c.children.push(createNode('hamburger', { state: 'drawerOpen' }));
+  const dr = createNode('drawer', { title: 'Menú', state: 'drawerOpen', side: 'left' });
+  dr.children.push(createNode('button', { text: 'Inicio', action: 'tab-Inicio', icon: '⌂' }));
+  dr.children.push(createNode('button', { text: 'Abrir tab Datos', action: 'tab-Datos' }));
+  c.children.push(dr);
+  c.children.push(createNode('nav', { tabs: 'Inicio,Datos,Ajustes', state: 'tab' }));
+  c.children.push(createNode('progress', { value: 45, state: 'uploadPct' }));
+  c.children.push(createNode('chip', { text: 'evento' }));
+  c.children.push(createNode('toast', { text: 'Listo', state: 'toast' }));
+  return [c];
+}
+
+
 export const EXAMPLES = [
   // Marketing
   { id: 'landing', name: 'Landing moderna', blurb: 'Hero + CTA + métrica reactiva', tags: ['marketing', 'hero'], build: landing },
@@ -1149,4 +1243,10 @@ export const EXAMPLES = [
   { id: 'demo-webrtc', name: 'WebRTC cámara', blurb: 'getUserMedia local optimizado', tags: ['webrtc'], build: demoWebRTC },
   { id: 'demo-stream-hub', name: 'Alset Streaming Hub', blurb: 'Ver/publicar/director multi-cámara', tags: ['webrtc', 'hub'], build: demoStreamHub },
   { id: 'demo-live-studio', name: 'Live Studio', blurb: 'Cámara + Hub + mapa + pulse', tags: ['webrtc', 'pro'], build: demoLiveStudio },
+  { id: 'demo-state-logic', name: 'Estados y botones', blurb: 'metric + setState + input + tab action', tags: ['logic', 'state'], build: demoStateLogic },
+  { id: 'demo-crud-list', name: 'CRUD + tabla', blurb: 'rest-consumer · table · list · POST', tags: ['crud', 'api'], build: demoCrudList },
+  { id: 'demo-nav-tabs', name: 'Navegación tabs', blurb: 'bottom-tabs · action tab-*', tags: ['nav', 'mobile'], build: demoNavTabs },
+  { id: 'demo-icons', name: 'Galería iconos UI', blurb: 'icon · fab en canvas', tags: ['icons'], build: demoIconsGallery },
+  { id: 'demo-mind-ui', name: 'Mind · Zyrion UI', blurb: 'paneles en el árbol', tags: ['mind', 'zyrion'], build: demoMindZyrionUI },
+  { id: 'demo-events', name: 'Eventos · drawer · nav', blurb: 'hamburger · action · progress', tags: ['logic', 'events'], build: demoEventsKitchen },
 ];
