@@ -173,7 +173,7 @@ store := &dataStore{items: []map[string]any{}}
 		_ = os.WriteFile(filepath.Join(appDir, "manifest.webmanifest"), []byte(manifest), 0o644)
 
 		sw := `const C='alset-pwa-v4';
-self.addEventListener('install',e=>{e.waitUntil(caches.open(C).then(c=>c.addAll(['./','./index.html','./app.alset.json','./manifest.webmanifest','./app-runtime.js?v=9','./mininode.js'])));self.skipWaiting()});
+self.addEventListener('install',e=>{e.waitUntil(caches.open(C).then(c=>c.addAll(['./','./index.html','./app.alset.json','./manifest.webmanifest','./app-runtime.js?v=10','./alset-lisp-engine.js','./mininode.js'])));self.skipWaiting()});
 self.addEventListener('activate',e=>e.waitUntil(self.clients.claim()));
 self.addEventListener('fetch',e=>{e.respondWith(caches.match(e.request).then(h=>h||fetch(e.request)))});`
 		_ = os.WriteFile(filepath.Join(appDir, "sw.js"), []byte(sw), 0o644)
@@ -181,11 +181,15 @@ self.addEventListener('fetch',e=>{e.respondWith(caches.match(e.request).then(h=>
 		// Copy shared runtime into the app (same painter as Studio preview)
 		rtSrc := filepath.Join(root, "runtime", "app-runtime.js")
 		mnSrc := filepath.Join(root, "runtime", "mininode.js")
+		lispSrc := filepath.Join(root, "runtime", "alset-lisp-engine.js")
 		if b, err := os.ReadFile(rtSrc); err == nil {
 			_ = os.WriteFile(filepath.Join(appDir, "app-runtime.js"), b, 0o644)
 		}
 		if b, err := os.ReadFile(mnSrc); err == nil {
 			_ = os.WriteFile(filepath.Join(appDir, "mininode.js"), b, 0o644)
+		}
+		if b, err := os.ReadFile(lispSrc); err == nil {
+			_ = os.WriteFile(filepath.Join(appDir, "alset-lisp-engine.js"), b, 0o644)
 		}
 
 		index := fmt.Sprintf(`<!DOCTYPE html>
@@ -202,8 +206,9 @@ html,body{margin:0;width:100%%;height:100%%;height:100dvh;background:#0b0e14;col
 #mount{position:fixed;inset:0;width:100%%;height:100%%;height:100dvh;padding:0;margin:0;display:flex;overflow:hidden}
 #mount > *{width:100%%!important;height:100%%!important;max-width:100%%!important;border:0!important;border-radius:0!important}
 </style>
+<script src="alset-lisp-engine.js"></script>
 <script src="mininode.js"></script>
-<script src="app-runtime.js?v=9"></script>
+<script src="app-runtime.js?v=10"></script>
 </head><body>
 <div id="mount" role="main"></div>
 <script>

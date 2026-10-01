@@ -247,3 +247,8 @@ Guía componente a componente (cuándo usarlo + ejemplos):
 ## Estados, navegación y CRUD
 
 → **[docs/ESTADO_NAV_CRUD.es.md](docs/ESTADO_NAV_CRUD.es.md)**
+
+
+## alsetState + LispAI fusionados
+
+→ **[docs/ALSETSTATE_LISPAI.es.md](docs/ALSETSTATE_LISPAI.es.md)**

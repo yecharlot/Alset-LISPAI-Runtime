@@ -60,8 +60,27 @@
     return { ok: true, voice, effect, organs: org };
   }
 
+  const localState = Object.create(null);
+
   function lispEval(cmd) {
     cmd = String(cmd || '').trim();
+    if (typeof globalThis.AlsetLispEngine !== 'undefined') {
+      const host = {
+        getState: (k) => {
+          if (globalThis.__alsetStateGet) return globalThis.__alsetStateGet(k);
+          return localState[k];
+        },
+        setState: (k, v) => {
+          localState[k] = v;
+          if (globalThis.__alsetStateSet) globalThis.__alsetStateSet(k, v);
+        },
+        dump: () => {
+          if (globalThis.__alsetStateDump) return globalThis.__alsetStateDump();
+          return { ...localState };
+        },
+      };
+      return globalThis.AlsetLispEngine.eval(cmd, host);
+    }
     if (cmd.startsWith('(+')) {
       const parts = cmd.replace(/[()]/g, ' ').trim().split(/\s+/).slice(1);
       const sum = parts.reduce((a, b) => a + (Number(b) || 0), 0);

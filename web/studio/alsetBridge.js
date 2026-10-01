@@ -62,6 +62,22 @@ export function stateSet(name, value) {
   getAlsetState(name).set(value);
 }
 
+function bindLispGlobals() {
+  if (typeof window === 'undefined') return;
+  window.__alsetStateGet = (k) => {
+    try { return getAlsetState(k).get(); } catch { return undefined; }
+  };
+  window.__alsetStateSet = (k, v) => { getAlsetState(k, v).set(v); };
+  window.__alsetStateDump = () => stateDump();
+  window.AlsetState = {
+    get: (k) => getAlsetState(k).get(),
+    set: (k, v) => getAlsetState(k, v).set(v),
+    dump: () => stateDump(),
+    eval: (src) => evalLispAgainstState(src),
+  };
+}
+bindLispGlobals();
+
 export function clearAlsetStates() {
   registry.clear();
 }
@@ -787,4 +803,21 @@ export function renderAlsetPreview(host, nodes, log, { device, theme } = {}) {
       }
     });
   });
+}
+
+
+/** LispAI fusionado con el mismo registry alsetState del Studio */
+export function evalLispAgainstState(src, extra = {}) {
+  if (typeof window === 'undefined' || !window.AlsetLispEngine) {
+    return { ok: false, error: 'AlsetLispEngine no cargado (alset-lisp-engine.js)' };
+  }
+  const host = window.AlsetLispEngine.makeHostFromRegistry({
+    get: (k) => getAlsetState(k).get(),
+    set: (k, v) => getAlsetState(k, v).set(v),
+    dump: () => stateDump(),
+    remount: extra.remount,
+    onSetProp: extra.onSetProp,
+    onUi: extra.onUi,
+  });
+  return window.AlsetLispEngine.eval(src, host);
 }

@@ -1,6 +1,6 @@
 import { CATALOG, TEMPLATES, THEME_COLORS, DEVICES, createNode, treeToLisp, treeToApp, applyLispSnippet , ALSET_ICONS } from './components.js';
 import { EXAMPLES } from './examples.js';
-import { renderAlsetPreview, stateDump, stateSet, stateLoad, clearAlsetStates } from './alsetBridge.js';
+import { renderAlsetPreview, stateDump, stateSet, stateLoad, clearAlsetStates, evalLispAgainstState } from './alsetBridge.js';
 import { installGlobalTraps, onError, getLastError, guard, reportError, StudioError } from './sandbox.js';
 
 const tree = [];
@@ -521,6 +521,20 @@ export function bootBuilder() {
   $('lisp').addEventListener('input', () => { lispDirty = true; });
   $('btn-apply-lisp').onclick = () => {
     const src = $('lisp').value;
+    // Prioridad: formas de estado fusionadas (get-state / set-state / …)
+    if (/\(\s*(get-state|set-state|swap-state|incf-state|toggle-state|when-state|states)\b/.test(src)
+        || (/\(\s*\+/.test(src) && !/\(ui\b/.test(src) && !/\(set-prop\b/.test(src))) {
+      const r = evalLispAgainstState(src, {
+        remount: () => { try { runPreview(); } catch (_) {} },
+      });
+      log('LispAI↔alsetState · ' + JSON.stringify(r));
+      if (r.ok) {
+        lispDirty = false;
+        setStatus('state-lisp ok');
+        return;
+      }
+    }
+
     let err = null;
     const n = guard('lisp', () => {
       try {

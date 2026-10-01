@@ -14,6 +14,7 @@ import (
 )
 
 type Node struct {
+	state map[string]any // LispAI ↔ memoria de proceso (mini)
 	mu       sync.RWMutex
 	PeerID   string
 	Episodes []map[string]any
@@ -31,6 +32,7 @@ type PeerInfo struct {
 func New() *Node {
 	h := sha256.Sum256([]byte(fmt.Sprintf("mininode-%d", time.Now().UnixNano())))
 	return &Node{
+		state:    map[string]any{},
 		PeerID:   "12D3KooM" + hex.EncodeToString(h[:16]),
 		Episodes: nil,
 		Peers:    map[string]PeerInfo{},
@@ -168,18 +170,22 @@ func (n *Node) LispEval(cmd string) map[string]any {
 	if cmd == "" {
 		return map[string]any{"error": "cmd vacío"}
 	}
-	// (evaluar-zyrion ...) simplified parse is heavy; expose dedicated endpoint
 	if strings.Contains(cmd, "evaluar-zyrion") {
 		return map[string]any{
 			"resultado": "usa POST /api/zyrion con JSON {env, labels}",
 			"hint":      "(evaluar-zyrion topo entorno) en nodo completo; aquí API dedicada",
 		}
 	}
+	// (get-state "k") / (set-state "k" v) — memoria LispAI ↔ state del mini-nodo
+	if strings.Contains(cmd, "get-state") || strings.Contains(cmd, "set-state") ||
+		strings.Contains(cmd, "incf-state") || strings.Contains(cmd, "toggle-state") ||
+		strings.Contains(cmd, "(states") {
+		return n.lispState(cmd)
+	}
 	low := strings.ToLower(cmd)
 	if strings.Contains(low, "hola") {
 		return map[string]any{"resultado": "hola desde LispAI mini"}
 	}
-	// (+ a b)
 	if strings.HasPrefix(cmd, "(+") {
 		parts := strings.Fields(strings.Trim(cmd, "()"))
 		sum := 0.0
@@ -189,7 +195,76 @@ func (n *Node) LispEval(cmd string) map[string]any {
 		}
 		return map[string]any{"resultado": sum}
 	}
-	return map[string]any{"resultado": cmd, "note": "LispAI mini: subset; conecta PrismaTec para motor completo"}
+	return map[string]any{"resultado": cmd, "note": "LispAI mini: subset; UI usa AlsetLispEngine + alsetState"}
+}
+
+func (n *Node) lispState(cmd string) map[string]any {
+	n.mu.Lock()
+	defer n.mu.Unlock()
+	if n.state == nil {
+		n.state = map[string]any{}
+	}
+	// parse muy simple: (op "key" valor?)
+	cmd = strings.TrimSpace(cmd)
+	op := ""
+	if strings.HasPrefix(cmd, "(get-state") {
+		op = "get-state"
+	} else if strings.HasPrefix(cmd, "(set-state") {
+		op = "set-state"
+	} else if strings.HasPrefix(cmd, "(incf-state") {
+		op = "incf-state"
+	} else if strings.HasPrefix(cmd, "(toggle-state") {
+		op = "toggle-state"
+	} else if strings.HasPrefix(cmd, "(states") {
+		return map[string]any{"ok": true, "resultado": n.state, "states": n.state}
+	}
+	// extraer "key"
+	key := ""
+	if i := strings.Index(cmd, `"`); i >= 0 {
+		rest := cmd[i+1:]
+		if j := strings.Index(rest, `"`); j >= 0 {
+			key = rest[:j]
+		}
+	}
+	if key == "" && op != "" {
+		return map[string]any{"error": "falta clave entre comillas", "hint": `(get-state "contador")`}
+	}
+	switch op {
+	case "get-state":
+		return map[string]any{"ok": true, "resultado": n.state[key], "key": key}
+	case "set-state":
+		// valor: número o true/false o string "..."
+		val := any(nil)
+		parts := strings.Fields(strings.TrimSuffix(strings.TrimPrefix(cmd, "(set-state"), ")"))
+		if len(parts) >= 2 {
+			last := parts[len(parts)-1]
+			if last == "true" {
+				val = true
+			} else if last == "false" {
+				val = false
+			} else if f, err := strconv.ParseFloat(last, 64); err == nil {
+				val = f
+			} else {
+				val = strings.Trim(last, `"`)
+			}
+		}
+		n.state[key] = val
+		return map[string]any{"ok": true, "resultado": val, "key": key, "states": n.state}
+	case "incf-state":
+		cur, _ := n.state[key].(float64)
+		if cur == 0 {
+			if i, ok := n.state[key].(int); ok {
+				cur = float64(i)
+			}
+		}
+		n.state[key] = cur + 1
+		return map[string]any{"ok": true, "resultado": n.state[key], "key": key}
+	case "toggle-state":
+		cur, _ := n.state[key].(bool)
+		n.state[key] = !cur
+		return map[string]any{"ok": true, "resultado": n.state[key], "key": key}
+	}
+	return map[string]any{"error": "estado no reconocido", "cmd": cmd}
 }
 
 // --- Mesh / gossip lite (rendezvous en proceso) ---
