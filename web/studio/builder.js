@@ -1,4 +1,4 @@
-import { CATALOG, TEMPLATES, THEME_COLORS, DEVICES, createNode, treeToLisp, treeToApp, applyLispSnippet } from './components.js';
+import { CATALOG, TEMPLATES, THEME_COLORS, DEVICES, createNode, treeToLisp, treeToApp, applyLispSnippet , ALSET_ICONS } from './components.js';
 import { EXAMPLES } from './examples.js';
 import { renderAlsetPreview, stateDump, stateSet, stateLoad, clearAlsetStates } from './alsetBridge.js';
 import { installGlobalTraps, onError, getLastError, guard, reportError, StudioError } from './sandbox.js';
@@ -91,6 +91,28 @@ function renderTemplates() {
         log('plantilla ' + t.id);
       });
     };
+    box.appendChild(b);
+  });
+}
+
+
+function renderIcons() {
+  const box = $('icons');
+  if (!box) return;
+  box.innerHTML = '';
+  Object.entries(ALSET_ICONS).forEach(([name, glyph]) => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'icon-swatch';
+    b.title = name;
+    b.innerHTML = `<span class="glyph">${glyph}</span><span class="iname">${name}</span>`;
+    b.addEventListener('click', () => {
+      const node = createNode('icon', { name, size: 28, color: 'primary' });
+      tree.push(node);
+      renderCanvas();
+      selectNode(node.id);
+      setStatus('icon:' + name);
+    });
     box.appendChild(b);
   });
 }

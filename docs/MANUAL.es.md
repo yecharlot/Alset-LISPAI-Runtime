@@ -242,3 +242,8 @@ Ventana nativa: `go build -tags webview ...` (CGO + WebKit/GTK).
 Guía componente a componente (cuándo usarlo + ejemplos):
 
 → **[docs/TOOLBOX_TUTORIAL.es.md](docs/TOOLBOX_TUTORIAL.es.md)**
+
+
+## Estados, navegación y CRUD
+
+→ **[docs/ESTADO_NAV_CRUD.es.md](docs/ESTADO_NAV_CRUD.es.md)**

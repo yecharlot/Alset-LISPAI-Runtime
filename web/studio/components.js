@@ -429,10 +429,20 @@ export const THEME_PRESETS = {
 };
 
 export const ALSET_ICONS = {
-  pulse: '⚡', cpu: '▣', gear: '⚙', home: '⌂', search: '⌕', user: '☺', cart: '▣',
-  heart: '♥', star: '★', chat: '✎', bell: '🔔', lock: '🔒', unlock: '🔓',
+  pulse: '⚡', cpu: '▣', gear: '⚙', home: '⌂', search: '⌕', user: '☺', cart: '🛒',
+  heart: '♥', star: '★', chat: '💬', bell: '🔔', lock: '🔒', unlock: '🔓',
   send: '➤', plus: '+', check: '✓', close: '✕', menu: '☰', map: '⌖',
   image: '⧉', play: '▶', pause: '❚❚', wallet: '◈', chart: '▦',
+  trash: '🗑', edit: '✎', save: '💾', folder: '📁', file: '📄', link: '🔗',
+  cloud: '☁', sync: '🔄', warning: '⚠', info: 'ℹ', help: '?', settings: '⚙',
+  calendar: '📅', clock: '🕒', phone: '📞', mail: '✉', camera: '📷', mic: '🎤',
+  video: '🎬', music: '🎵', pin: '📍', globe: '🌐', shop: '🏪', package: '📦',
+  truck: '🚚', money: '💰', card: '💳', list: '☰', grid: '▦', filter: 'ӻ',
+  arrowLeft: '←', arrowRight: '→', arrowUp: '↑', arrowDown: '↓',
+  chevronLeft: '‹', chevronRight: '›', external: '↗', download: '↓', upload: '↑',
+  logout: '⎋', login: '⏎', key: '🔑', shield: '🛡', bolt: '⚡', fire: '🔥',
+  leaf: '🍃', sun: '☀', moon: '☾', eye: '👁', eyeOff: '◌', copy: '⧉',
+  tag: '🏷', bookmark: '🔖', flag: '⚑', building: '🏢', users: '👥',
 };
 
 

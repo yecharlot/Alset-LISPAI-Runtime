@@ -364,3 +364,40 @@ body.studio-full {
   position: fixed;
   inset: 0;
 }
+
+/* Paleta de iconos */
+.icon-palette {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 6px;
+  max-height: 220px;
+  overflow: auto;
+  padding: 4px 0 12px;
+}
+.icon-swatch {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 8px 4px;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  background: var(--panel2);
+  color: var(--text);
+  cursor: pointer;
+  font-size: 11px;
+}
+.icon-swatch:hover {
+  border-color: var(--gold);
+  background: var(--elevated);
+}
+.icon-swatch .glyph { font-size: 18px; line-height: 1.2; }
+.icon-swatch .iname {
+  font-size: 9px;
+  color: var(--muted);
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.pane-hint { font-size: 11px; color: var(--muted); margin: 0 0 6px; }
