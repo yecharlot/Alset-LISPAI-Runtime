@@ -235,3 +235,10 @@ go build -o alset-studio-desktop ./cmd/alset-studio-desktop
 ```
 
 Ventana nativa: `go build -tags webview ...` (CGO + WebKit/GTK).
+
+
+## Tutorial del Toolbox
+
+Guía componente a componente (cuándo usarlo + ejemplos):
+
+→ **[docs/TOOLBOX_TUTORIAL.es.md](docs/TOOLBOX_TUTORIAL.es.md)**

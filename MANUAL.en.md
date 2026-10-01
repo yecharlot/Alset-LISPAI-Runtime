@@ -41,3 +41,8 @@ See also: `docs/MININODE.md`, `docs/AGENTS_REST_PULSE.md`.
 - **map**: OpenStreetMap embed (`lat`, `lng`, `zoom`).
 - Deployed PWAs are **full viewport** (no studio header).
 - Examples: Media player, Pulse media, Map explore, Media shell.
+
+
+## Toolbox tutorial (Spanish)
+
+See **docs/TOOLBOX_TUTORIAL.es.md** for per-component usage and examples.
