@@ -27,6 +27,9 @@ export const CATALOG = [
     { type: 'nav', label: 'Nav tabs', defaults: { tabs: 'Inicio,Datos,Ajustes', state: 'tab' } },
     { type: 'hero', label: 'Hero', defaults: { title: 'Producto', subtitle: 'Declarativo · Alset' } },
     { type: 'table', label: 'Tabla', defaults: { state: 'rows', columns: 'id,name' } },
+    { type: 'chart-bar', label: 'Gráfico barras', defaults: { state: 'series', title: 'Ventas' } },
+    { type: 'chart-line', label: 'Gráfico línea', defaults: { state: 'series', title: 'Tendencia' } },
+    { type: 'toast', label: 'Toast / aviso', defaults: { state: 'toast' } },
   ]},
   { group: 'Acceso / roles', items: [
     { type: 'login-token', label: 'Login token', defaults: { title: 'Entrar', userState: 'user', passState: 'pass', button: 'Entrar' } },

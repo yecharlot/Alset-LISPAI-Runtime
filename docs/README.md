@@ -30,3 +30,6 @@ Plantillas · Componentes · Colores · **Iconos** (clic = insertar)
 ## Paquete de ejemplos v2
 
 → **[docs/EJEMPLOS_PACK.es.md](docs/EJEMPLOS_PACK.es.md)**
+
+## Charts y ejemplos funcionales
+→ docs/EJEMPLOS_PACK.es.md · componentes chart-bar, chart-line, toast

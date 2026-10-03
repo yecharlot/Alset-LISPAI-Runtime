@@ -1669,12 +1669,94 @@ function el(tag, cls, text) {
         kids(wrap);
         break;
       }
-      case 'state':
-      case 'persist':
+      case 'state': {
+        const name = p.name || p.key;
+        if (name && ctx.state) {
+          let v = p.value;
+          if (typeof v === 'string') {
+            const s = v.trim();
+            if ((s.startsWith('[') || s.startsWith('{') || s === 'true' || s === 'false' || /^-?\d+(\.\d+)?$/.test(s))) {
+              try { v = JSON.parse(s); } catch (_) {}
+            }
+          }
+          if (ctx.state[name] === undefined) ctx.state[name] = v;
+          else if (p.force === true || p.force === 'true') ctx.state[name] = v;
+        }
+        break;
+      }
+      case 'persist': {
+        const keyName = p.key || 'app.v1';
+        const stKey = p.state || 'count';
+        try {
+          const raw = localStorage.getItem(keyName);
+          if (raw != null && ctx.state && !ctx._persistOnce?.[keyName]) {
+            ctx._persistOnce = ctx._persistOnce || {};
+            ctx._persistOnce[keyName] = true;
+            ctx.state[stKey] = JSON.parse(raw);
+          }
+        } catch (_) {}
+        break;
+      }
+      case 'chart-bar': {
+        let data = ctx.state?.[p.state];
+        if (!Array.isArray(data)) data = [];
+        addClass(wrap, 'rt-card', 'rt-chart');
+        wrap.appendChild(el('div', 'rt-form-title', p.title || 'Gráfico'));
+        const max = Math.max(1, ...data.map((d) => Number(typeof d === 'object' ? d.value : d) || 0));
+        data.slice(0, 12).forEach((d) => {
+          const label = typeof d === 'object' ? (d.label || d.name || '') : '';
+          const val = Number(typeof d === 'object' ? d.value : d) || 0;
+          const row = el('div', 'rt-chart-row');
+          row.appendChild(el('span', 'rt-chart-label', label || String(val)));
+          const track = el('div', 'rt-chart-track');
+          const fill = el('div', 'rt-chart-fill');
+          fill.style.width = Math.round((val / max) * 100) + '%';
+          track.appendChild(fill);
+          row.appendChild(track);
+          row.appendChild(el('span', 'rt-chart-val', String(val)));
+          wrap.appendChild(row);
+        });
+        if (!data.length) wrap.appendChild(el('div', 'rt-muted', p.empty || 'Sin series'));
+        break;
+      }
+      case 'chart-line': {
+        let data = ctx.state?.[p.state];
+        if (!Array.isArray(data)) data = [];
+        addClass(wrap, 'rt-card', 'rt-chart');
+        wrap.appendChild(el('div', 'rt-form-title', p.title || 'Tendencia'));
+        const vals = data.map((d) => Number(typeof d === 'object' ? d.value : d) || 0);
+        const max = Math.max(1, ...vals);
+        const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+        svg.setAttribute('viewBox', '0 0 200 60');
+        svg.setAttribute('width', '100%');
+        svg.setAttribute('height', '64');
+        const pts = vals.map((v, i) => {
+          const x = vals.length <= 1 ? 100 : (i / (vals.length - 1)) * 200;
+          const y = 55 - (v / max) * 50;
+          return x + ',' + y;
+        }).join(' ');
+        const poly = document.createElementNS('http://www.w3.org/2000/svg', 'polyline');
+        poly.setAttribute('fill', 'none');
+        poly.setAttribute('stroke', THEME.primary);
+        poly.setAttribute('stroke-width', '2.5');
+        poly.setAttribute('points', pts || '0,30 200,30');
+        svg.appendChild(poly);
+        wrap.appendChild(svg);
+        if (!data.length) wrap.appendChild(el('div', 'rt-muted', p.empty || 'Sin datos'));
+        break;
+      }
+      case 'toast':
+      case 'notify-bar': {
+        const msg = ctx.state?.[p.state || 'toast'];
+        if (msg) {
+          const bar = el('div', 'rt-toast', typeof msg === 'object' ? (msg.text || JSON.stringify(msg)) : String(msg));
+          wrap.appendChild(bar);
+        }
+        break;
+      }
       case 'ipfs':
       case 'agent':
       case 'role-badge':
-        wrap.appendChild(el('div', 'rt-muted', n.type + ' ' + (p.name || p.key || p.cid || '')));
         break;
       default:
         wrap.appendChild(el('div', 'rt-muted', String(n.type)));
@@ -1802,6 +1884,13 @@ function el(tag, cls, text) {
 .rt-video{display:block;width:100%;background:#000}
 .rt-audio{display:block;width:100%;margin-top:6px}
 .rt-map iframe{display:block}
+.rt-chart-row{display:flex;align-items:center;gap:8px;margin:6px 0;font-size:12px}
+.rt-chart-label{width:72px;flex-shrink:0;color:${THEME.muted};overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.rt-chart-track{flex:1;height:10px;background:${THEME.line};border-radius:99px;overflow:hidden}
+.rt-chart-fill{height:100%;background:linear-gradient(90deg,${THEME.primary},${THEME.primaryDark||THEME.primary});border-radius:99px}
+.rt-chart-val{width:36px;text-align:right;font-weight:700;color:${THEME.primary}}
+.rt-toast{background:linear-gradient(90deg,rgba(244,180,0,.25),rgba(244,180,0,.08));border:1px solid rgba(244,180,0,.4);color:#fff;padding:10px 14px;border-radius:12px;font-size:13px;font-weight:600;margin:8px 0;animation:rtPop .35s ease}
+
 .rt-gesture-hint{position:absolute;bottom:8px;left:8px;right:8px;font-size:10px;color:${THEME.muted};pointer-events:none;opacity:.7}
 `;
     doc.head.appendChild(s);
