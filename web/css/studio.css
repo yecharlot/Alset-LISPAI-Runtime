@@ -420,10 +420,39 @@ body.studio-full {
 .state-row .sk { color: var(--gold); font-weight: 600; word-break: break-all; }
 .state-row .sv { color: var(--muted); word-break: break-all; font-family: ui-monospace, monospace; font-size: 11px; }
 .logic-out {
-  background: #0a0b10; border: 1px solid var(--line); border-radius: 8px;
-  padding: 10px; font-size: 11px; max-height: 160px; overflow: auto;
-  white-space: pre-wrap; color: var(--text); margin: 6px 0 12px;
+  display: block;
+  width: 100%;
+  min-height: 72px;
+  max-height: 240px;
+  overflow: auto;
+  margin: 0;
+  padding: 12px 14px;
+  border-radius: 10px;
+  border: 1px solid var(--line-strong, rgba(255,255,255,0.12));
+  background: #0a0a0a;
+  color: #e8e8e8;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 12px;
+  line-height: 1.45;
+  white-space: pre-wrap;
+  word-break: break-word;
+  box-sizing: border-box;
 }
+.logic-out.is-ok { border-color: rgba(52, 211, 153, 0.45); }
+.logic-out.is-err { border-color: rgba(248, 113, 113, 0.5); color: #fecaca; }
+.zyrion-result-card {
+  display: flex; gap: 10px; align-items: center; flex-wrap: wrap;
+  padding: 12px; border-radius: 12px; background: #141414;
+  border: 1px solid rgba(244, 180, 0, 0.25); margin-top: 8px;
+}
+.zyrion-badge {
+  font-size: 22px; font-weight: 800; color: #0a0a0a;
+  background: #f4b400; border-radius: 12px; padding: 8px 14px;
+}
+.zyrion-badge.t0 { background: #4caf50; color: #fff; }
+.zyrion-badge.t1 { background: #f4b400; color: #111; }
+.zyrion-badge.t2 { background: #ff5252; color: #fff; }
+
 .zyrion-grid {
   display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin: 8px 0;
 }

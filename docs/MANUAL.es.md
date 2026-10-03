@@ -281,3 +281,9 @@ Ejemplos nuevos: *Estados y botones*, *CRUD + tabla*, *Navegación tabs*, *Galer
 ## Mapas MapLibre
 → docs/MAPAS_MAPLIBRE.es.md
 
+
+## Lectura recomendada
+1. [EMPIEZA_AQUI.md](EMPIEZA_AQUI.md)
+2. [MAPAS_EN_SIMPLE.md](MAPAS_EN_SIMPLE.md)
+3. [MIND_EN_SIMPLE.md](MIND_EN_SIMPLE.md)
+

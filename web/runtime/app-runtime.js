@@ -1732,6 +1732,87 @@ function el(tag, cls, text) {
         break;
       }
 
+
+      case 'route-planner': {
+        /* Planificador tipo Uber: origen/destino + OSRM + tarifa + estado viaje */
+        addClass(wrap, 'rt-card');
+        wrap.appendChild(el('div', 'rt-form-title', p.title || 'Pedir viaje'));
+        const oLat = Number(ctx.state?.[p.originLatState || 'originLat'] ?? p.originLat ?? 20.1453);
+        const oLng = Number(ctx.state?.[p.originLngState || 'originLng'] ?? p.originLng ?? -75.2062);
+        const dLat = Number(ctx.state?.[p.destLatState || 'destLat'] ?? p.destLat ?? 20.0217);
+        const dLng = Number(ctx.state?.[p.destLngState || 'destLng'] ?? p.destLng ?? -75.8267);
+        const info = el('div', 'rt-muted', 'Origen: ' + oLat.toFixed(4) + ',' + oLng.toFixed(4) + ' → Destino: ' + dLat.toFixed(4) + ',' + dLng.toFixed(4));
+        wrap.appendChild(info);
+        const status = el('div', 'rt-muted', ctx.state?.[p.statusState || 'tripStatus'] || 'Listo para calcular');
+        wrap.appendChild(status);
+        const metrics = el('div', 'rt-row');
+        metrics.style.marginTop = '8px';
+        const run = async () => {
+          status.textContent = 'Calculando ruta (OSRM)…';
+          const url = 'https://router.project-osrm.org/route/v1/driving/' +
+            oLng + ',' + oLat + ';' + dLng + ',' + dLat +
+            '?overview=full&geometries=geojson';
+          try {
+            const r = await fetch(url);
+            const j = await r.json();
+            const route = j.routes && j.routes[0];
+            if (!route) {
+              status.textContent = 'No hay ruta (revisa coordenadas o red)';
+              return;
+            }
+            const coordsLngLat = route.geometry.coordinates; // [lng,lat]
+            const coordsLatLng = coordsLngLat.map((c) => [c[1], c[0]]);
+            const km = (route.distance / 1000);
+            const min = Math.round(route.duration / 60);
+            const fare = Math.max(15, Math.round(25 + km * 12 + min * 0.8));
+            if (ctx.setState) {
+              ctx.setState(p.routeState || 'routeCoords', coordsLatLng);
+              ctx.setState(p.distanceState || 'tripKm', Math.round(km * 10) / 10);
+              ctx.setState(p.durationState || 'tripMin', min);
+              ctx.setState(p.fareState || 'tripFare', fare);
+              ctx.setState(p.statusState || 'tripStatus', 'Ruta lista · ' + Math.round(km * 10) / 10 + ' km · ' + min + ' min');
+              ctx.setState(p.markersState || 'mapMarkers', [
+                { lat: oLat, lng: oLng, label: 'Origen' },
+                { lat: dLat, lng: dLng, label: 'Destino' },
+              ]);
+              ctx.setState(p.latState || 'mapLat', (oLat + dLat) / 2);
+              ctx.setState(p.lngState || 'mapLng', (oLng + dLng) / 2);
+            }
+            status.textContent = 'Ruta OK · ' + Math.round(km * 10) / 10 + ' km · ' + min + ' min · ~' + fare + ' CUP';
+            metrics.innerHTML = '';
+            metrics.appendChild(el('div', 'rt-muted', Math.round(km * 10) / 10 + ' km'));
+            metrics.appendChild(el('div', 'rt-muted', min + ' min'));
+            metrics.appendChild(el('div', 'rt-muted', fare + ' CUP'));
+            ctx.remount && ctx.remount();
+          } catch (e) {
+            status.textContent = 'Error de red: ' + (e.message || e);
+          }
+        };
+        const b = el('button', 'rt-btn', p.buttonText || 'Calcular ruta y tarifa');
+        b.type = 'button';
+        b.onclick = run;
+        wrap.appendChild(b);
+        const b2 = el('button', 'rt-btn', 'Pedir conductor');
+        b2.type = 'button';
+        b2.style.marginLeft = '8px';
+        b2.style.background = '#4caf50';
+        b2.onclick = () => {
+          if (ctx.setState) {
+            ctx.setState(p.statusState || 'tripStatus', 'Buscando conductor…');
+            ctx.setState(p.driverState || 'driver', { name: 'Luis M.', eta: '4 min', plate: 'G 12345' });
+            setTimeout(() => {
+              if (ctx.setState) ctx.setState(p.statusState || 'tripStatus', 'Conductor asignado · Luis M. · 4 min');
+              ctx.remount && ctx.remount();
+            }, 800);
+          }
+          ctx.remount && ctx.remount();
+        };
+        wrap.appendChild(b2);
+        wrap.appendChild(metrics);
+        if (p.auto === true || p.auto === 'true') setTimeout(run, 50);
+        break;
+      }
+
       case 'webrtc-camera':
       case 'camera': {
         addClass(wrap, 'rt-card', 'rt-webrtc');

@@ -132,17 +132,17 @@
 
         <div id="logic-mind" class="logic-panel">
           <p class="logic-help">
-            <b>Mind</b> (latido ternario) y <b>Zyrion</b> (0 seguir · 1 matizar · 2 sumidero absorbente).
-            Mini-nodo embebido o API del Studio.
+            Aquí pruebas el <b>agente Mind</b> (responde al mensaje) y <b>Zyrion</b> (decide 0, 1 o 2).
+            Puedes meter Mind o Zyrion en cualquier app con los componentes del toolbox.
           </p>
-          <h3>Mind · tick</h3>
-          <textarea id="mind-input" class="lisp" rows="2" placeholder="Escribe un mensaje… ej. hola / quién eres / me llamo Ana"></textarea>
+          <h3>Hablar con Mind</h3>
+          <textarea id="mind-input" class="lisp" rows="2" placeholder="Ejemplo: hola · quién eres · me llamo Ana"></textarea>
           <div class="row-btns">
-            <button type="button" class="btn btn-blue" id="btn-mind-tick">Latido Mind</button>
+            <button type="button" class="btn btn-blue" id="btn-mind-tick">Enviar latido</button>
           </div>
-          <pre id="mind-out" class="logic-out">—</pre>
-          <h3>Zyrion · evaluar</h3>
-          <p class="logic-help">Entradas 0–1 (o 0/1/2). El <b>2</b> absorbe el resultado.</p>
+          <pre id="mind-out" class="logic-out">La respuesta de Mind aparecerá aquí.</pre>
+          <h3>Probar Zyrion (lógica 0 / 1 / 2)</h3>
+          <p class="logic-help">Mueve los valores A, B y C. Si alguno es alto (cerca de 1), el resultado puede ser 2 y “absorbe” la decisión.</p>
           <div class="zyrion-grid">
             <label>A <input id="zyr-a" class="rt-input" type="number" step="0.1" value="0.2" /></label>
             <label>B <input id="zyr-b" class="rt-input" type="number" step="0.1" value="0.5" /></label>
@@ -151,7 +151,7 @@
           <div class="row-btns">
             <button type="button" class="btn btn-blue" id="btn-zyrion-eval">Evaluar Zyrion</button>
           </div>
-          <pre id="zyrion-out" class="logic-out">—</pre>
+          <div id="zyrion-out" class="logic-out">El resultado ternario aparecerá aquí.</div>
           <p class="logic-help">También: componente <code>mind-panel</code> / <code>zyrion-panel</code> en el canvas, o <code>POST /api/mind/tick</code> · <code>POST /api/zyrion</code>.</p>
         </div>
 

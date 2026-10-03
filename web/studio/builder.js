@@ -646,6 +646,10 @@ export function bootBuilder() {
   async function mindTick() {
     const text = $('mind-input')?.value || '';
     const out = $('mind-out');
+    if (out) {
+      out.classList.remove('is-ok', 'is-err');
+      out.textContent = 'Pensando…';
+    }
     try {
       let j;
       if (window.AlsetMiniNode && window.AlsetMiniNode.mindTick) {
@@ -658,10 +662,29 @@ export function bootBuilder() {
         });
         j = await r.json();
       }
-      if (out) out.textContent = JSON.stringify(j, null, 2);
-      log('mind · ' + (j.voice || JSON.stringify(j)));
+      const voice = j.voice || j.respuesta || j.text || '';
+      const organs = j.organs || j.organos || {};
+      const orgLine = Object.keys(organs).length
+        ? Object.entries(organs).map(([k, v]) => k + '=' + v).join(' · ')
+        : '';
+      const lines = [
+        '── Respuesta de Mind ──',
+        voice || '(sin voz)',
+        '',
+        orgLine ? ('Órganos: ' + orgLine) : '',
+        j.effect != null ? ('Efecto: ' + j.effect) : '',
+        j.cid ? ('CID: ' + j.cid) : '',
+      ].filter(Boolean);
+      if (out) {
+        out.textContent = lines.join('\n');
+        out.classList.add('is-ok');
+      }
+      log('mind · ' + (voice || JSON.stringify(j)).slice(0, 120));
     } catch (e) {
-      if (out) out.textContent = String(e.message || e);
+      if (out) {
+        out.textContent = 'Error: ' + (e.message || e);
+        out.classList.add('is-err');
+      }
       log('mind err: ' + e.message);
     }
   }
@@ -672,6 +695,10 @@ export function bootBuilder() {
       C: Number($('zyr-c')?.value || 0),
     };
     const out = $('zyrion-out');
+    if (out) {
+      out.classList.remove('is-ok', 'is-err');
+      out.textContent = 'Evaluando…';
+    }
     try {
       let j;
       if (window.AlsetMiniNode && window.AlsetMiniNode.evalZyrion) {
@@ -684,10 +711,34 @@ export function bootBuilder() {
         });
         j = await r.json();
       }
-      if (out) out.textContent = JSON.stringify(j, null, 2);
-      log('zyrion · t=' + (j.ternary ?? j.resultado) + ' ' + (j.label || ''));
+      const t = j.ternary ?? j.resultado ?? j.t;
+      const label = j.label || ({ 0: 'SEGUIR', 1: 'MATIZAR', 2: 'SUMIDERO' }[t] || String(t));
+      const meaning = {
+        0: 'Seguir / permitir el flujo',
+        1: 'Matizar / revisar con cuidado',
+        2: 'Sumidero absorbente: detener o escalar',
+      }[t] || '';
+      if (out) {
+        out.innerHTML = '';
+        const card = document.createElement('div');
+        card.className = 'zyrion-result-card';
+        const badge = document.createElement('span');
+        badge.className = 'zyrion-badge t' + t;
+        badge.textContent = t + ' · ' + label;
+        card.appendChild(badge);
+        const info = document.createElement('div');
+        info.innerHTML = '<div style="font-weight:700;color:#fff">' + meaning + '</div>' +
+          '<div style="font-size:12px;color:#b0b0b0;margin-top:4px">Entradas A=' + env.A + ' B=' + env.B + ' C=' + env.C + '</div>';
+        card.appendChild(info);
+        out.appendChild(card);
+        out.classList.add('is-ok');
+      }
+      log('zyrion · t=' + t + ' ' + label);
     } catch (e) {
-      if (out) out.textContent = String(e.message || e);
+      if (out) {
+        out.textContent = 'Error: ' + (e.message || e);
+        out.classList.add('is-err');
+      }
     }
   }
   $('btn-mind-tick')?.addEventListener('click', mindTick);

@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Alset-JS Editor</title>
+  <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css" />
+  <style>
+    :root {
+      --bg: #050505; --panel: #0f0f0f; --gold: #ffd700; --text: #f5f5f5; --muted: #9a9a9a; --line: rgba(255,215,0,.15);
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; height: 100%; font-family: Inter, system-ui, sans-serif; background: var(--bg); color: var(--text); }
+    body { display: flex; flex-direction: column; }
+    header {
+      display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+      padding: 10px 14px; border-bottom: 1px solid var(--line); background: rgba(15,15,15,.95);
+    }
+    header strong { color: var(--gold); letter-spacing: .06em; }
+    header span { color: var(--muted); font-size: 12px; }
+    .btn {
+      border: 0; border-radius: 999px; padding: 8px 14px; font-weight: 700; cursor: pointer;
+      background: linear-gradient(180deg, #ffe566, var(--gold)); color: #111;
+    }
+    .btn.ghost { background: transparent; color: var(--muted); border: 1px solid var(--line); }
+    main { flex: 1; display: grid; grid-template-columns: 1fr 1fr; min-height: 0; }
+    @media (max-width: 900px) { main { grid-template-columns: 1fr; grid-template-rows: 1fr 1fr; } }
+    .code-pane, .preview-pane { display: flex; flex-direction: column; min-height: 0; border-right: 1px solid var(--line); }
+    .preview-pane { border-right: 0; }
+    .label { font-size: 11px; color: var(--muted); padding: 8px 12px; border-bottom: 1px solid var(--line); }
+    #code {
+      flex: 1; width: 100%; border: 0; resize: none; padding: 12px;
+      background: #0a0a0a; color: #e8e8e8; font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 13px; line-height: 1.45;
+    }
+    #preview {
+      flex: 1; overflow: auto; padding: 12px; background: #050505;
+    }
+    .hint { padding: 8px 12px; font-size: 12px; color: var(--muted); border-top: 1px solid var(--line); }
+  </style>
+</head>
+<body>
+  <header>
+    <strong>ALSET-JS EDITOR</strong>
+    <span>Solo primitivas Alset-JS-Runtime (PulseCore) · sin árbol Studio</span>
+    <span style="flex:1"></span>
+    <button type="button" class="btn ghost" id="btn-example">Cargar ejemplo mapa</button>
+    <button type="button" class="btn" id="btn-run">Ejecutar</button>
+  </header>
+  <main>
+    <section class="code-pane">
+      <div class="label">Código (usa Column, Text, Button, MapNode, alsetState…)</div>
+      <textarea id="code" spellcheck="false"></textarea>
+      <div class="hint">Este editor no usa el toolbox de Studio. Todo se escribe con la API de Alset-JS-Runtime.</div>
+    </section>
+    <section class="preview-pane">
+      <div class="label">Vista en vivo</div>
+      <div id="preview"></div>
+    </section>
+  </main>
+  <script type="module" src="./main.js"></script>
+</body>
+</html>
