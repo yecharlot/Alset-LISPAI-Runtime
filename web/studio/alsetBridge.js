@@ -15,6 +15,7 @@ import {
   Animate,
   mod,
   Theme,
+  setForcedBreakpoint,
 } from '../alset/AlsetPulseCore.js';
 import { THEME_COLORS } from './components.js';
 import { guard, withBudget, reportError, StudioError } from './sandbox.js';
@@ -405,6 +406,9 @@ function renderNode(n, log, depth = 0) {
 export function renderAlsetPreview(host, nodes, log, { device, theme } = {}) {
   return withBudget('alset-preview', () => {
     if (!host) return;
+    // Map device → Alset breakpoint so layout adapts (sm/md/lg)
+    const bpMap = { mobile: 'sm', tablet: 'md', desktop: 'lg' };
+    setForcedBreakpoint(device ? bpMap[device.id] || 'md' : null);
     // clear previous DOM + allow API flags to re-fire on full remount
     host.innerHTML = '';
     const frame = document.createElement('div');
@@ -413,6 +417,7 @@ export function renderAlsetPreview(host, nodes, log, { device, theme } = {}) {
       frame.style.width = device.width + 'px';
       frame.style.maxWidth = '100%';
       frame.style.minHeight = Math.min(device.height, 480) + 'px';
+      frame.dataset.device = device.id;
     }
     const label = document.createElement('div');
     label.className = 'device-label';

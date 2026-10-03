@@ -88,6 +88,23 @@
           <button type="button" class="btn btn-blue" id="btn-apply-lisp">Aplicar</button>
           <button type="button" class="btn btn-ghost" id="btn-sync-lisp">Sync árbol</button>
         </div>
+        <h3>Lógica · Backend</h3>
+        <div id="logic-panel" class="logic-panel">
+          <p class="hint-text">Enlaza eventos UI → API sin salir del Studio.</p>
+          <div class="field">
+            <label>Al enviar formulario / botón → POST</label>
+            <input id="logic-url" value="/v1/data" />
+          </div>
+          <div class="field">
+            <label>Estados a enviar (coma)</label>
+            <input id="logic-states" value="email,msg" />
+          </div>
+          <div class="row-btns">
+            <button type="button" class="btn btn-blue" id="btn-logic-test">Probar POST</button>
+            <button type="button" class="btn btn-ghost" id="btn-logic-get">GET datos</button>
+          </div>
+          <pre id="logic-out" class="logic-out"></pre>
+        </div>
       </div>
     </aside>
   </div>

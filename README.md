@@ -22,3 +22,9 @@ Preview uses **native `alsetState`**, `Column`/`Row`/`Text`/`Button`/`Input`/`Ca
 ## Deploy
 
 **Desplegar PWA** → `/apps/<name>/` with manifest + service worker + `rootcid`.
+
+
+## Manuals
+
+- [Español](docs/Manual.es.md)
+- [English](docs/Manual.en.md)

@@ -206,3 +206,13 @@ body { display: flex; flex-direction: column; min-height: 100dvh; overflow: hidd
 
 /* Alset preview helpers still used by bridge DOM bits */
 .pv-card, .preview-host [class] { }
+
+.logic-panel { margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--line); }
+.logic-out {
+  margin: 8px 0 0; padding: 8px; max-height: 120px; overflow: auto;
+  font-family: ui-monospace, monospace; font-size: 11px; color: var(--muted);
+  background: #07080c; border-radius: 8px; border: 1px solid var(--line); white-space: pre-wrap;
+}
+.device-frame[data-device="mobile"] { max-width: 390px; }
+.device-frame[data-device="tablet"] { max-width: 768px; }
+.device-frame[data-device="desktop"] { max-width: 1100px; }

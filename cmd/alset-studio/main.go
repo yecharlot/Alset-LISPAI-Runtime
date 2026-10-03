@@ -119,27 +119,40 @@ self.addEventListener('fetch',e=>{e.respondWith(caches.match(e.request).then(h=>
 		_ = os.WriteFile(filepath.Join(appDir, "sw.js"), []byte(sw), 0o644)
 
 		index := fmt.Sprintf(`<!DOCTYPE html>
-<html lang="es"><head>
-<meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
-<meta name="theme-color" content="#0b0e14"/>
+<html lang="es">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"/>
+<meta name="theme-color" content="#09090b"/>
 <link rel="manifest" href="manifest.webmanifest"/>
 <title>%s</title>
 <style>
-body{margin:0;font-family:system-ui,sans-serif;background:#0b0e14;color:#eef1f6;padding:16px}
-h1{color:#e8c547;font-size:18px} pre{background:#12171f;padding:12px;border-radius:10px;overflow:auto;font-size:12px}
-.meta{color:#8b93a7;font-size:12px}
-</style></head><body>
-<h1>%s</h1>
-<p class="meta">RootCID <code id="cid"></code> · agent studio · PWA</p>
-<pre id="out">cargando…</pre>
-<script>
-fetch('app.alset.json').then(r=>r.json()).then(j=>{
-  document.getElementById('cid').textContent=j.rootcid||'—';
-  document.getElementById('out').textContent=JSON.stringify(j,null,2);
-}).catch(e=>{document.getElementById('out').textContent=String(e)});
-if('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(()=>{});
-</script>
-</body></html>`, name, name)
+  :root { color-scheme: dark; }
+  * { box-sizing: border-box; }
+  body { margin: 0; min-height: 100dvh; font-family: system-ui, sans-serif;
+    background: #09090b; color: #f4f4f5; }
+  header { padding: 10px 16px; border-bottom: 1px solid rgba(255,255,255,.08);
+    display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+  header strong { color: #f5c542; letter-spacing: .06em; font-size: 13px; }
+  #boot-status { font-size: 11px; color: #a1a1aa; }
+  #app { padding: 12px; min-height: 60dvh; }
+  #run-log { margin: 0; padding: 8px 16px; font-size: 11px; color: #71717a;
+    max-height: 80px; overflow: auto; border-top: 1px solid rgba(255,255,255,.06); }
+  .preview-host { padding: 8px; }
+  .device-frame { border: none !important; box-shadow: none !important; }
+  .device-label { display: none; }
+</style>
+</head>
+<body>
+<header>
+  <strong>%s</strong>
+  <span id="boot-status">cargando…</span>
+</header>
+<div id="app"></div>
+<pre id="run-log"></pre>
+<script type="module" src="/studio/deploy-runner.js"></script>
+</body>
+</html>`, name, name)
 		_ = os.WriteFile(filepath.Join(appDir, "index.html"), []byte(index), 0o644)
 
 		writeJSON(w, map[string]any{

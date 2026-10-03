@@ -13,7 +13,13 @@
    y estados internos (como el cursor en un input o el scroll).
 */
 export const AlsetRegistry = new Map();
-let currentContext = null; 
+let currentContext = null;
+/** Studio device preview: force sm|md|lg|xl regardless of window width */
+export let forcedBreakpoint = null;
+export function setForcedBreakpoint(bp) {
+  forcedBreakpoint = bp || null;
+}
+ 
 let currentTracker = null; 
 const nodeDeps = new WeakMap(); 
 const scheduled = new Set(); 
@@ -219,7 +225,7 @@ export const Alset = {
       const deps = nodeDeps.get(el.recomposeAction);
       if (deps) { deps.forEach(st => st.subscribers.delete(el.recomposeAction)); deps.clear(); }
 
-      const bp = (window.innerWidth <= 480) ? "sm" : (window.innerWidth <= 768) ? "md" : (window.innerWidth <= 1024) ? "lg" : "xl";
+      const bp = forcedBreakpoint || ((window.innerWidth <= 480) ? "sm" : (window.innerWidth <= 768) ? "md" : (window.innerWidth <= 1024) ? "lg" : "xl");
       const next = Object.assign({}, modifier?._styles || {});
       if (modifier?._responsive?.[bp]) Object.assign(next, modifier._responsive[bp]);
 

@@ -1,4 +1,5 @@
-import { CATALOG, TEMPLATES, THEME_COLORS, DEVICES, createNode, treeToLisp, treeToApp, applyLispSnippet } from './components.js';
+import { CATALOG, TEMPLATES, THEME_COLORS, DEVICES, createNode, treeToLisp, treeToApp } from './components.js';
+import { applyLispSource } from './lispApply.js';
 import { EXAMPLES } from './examples.js';
 import { renderAlsetPreview, stateDump, stateSet, stateLoad, clearAlsetStates } from './alsetBridge.js';
 import { installGlobalTraps, onError, getLastError, guard, reportError, StudioError } from './sandbox.js';
@@ -249,8 +250,10 @@ export function bootBuilder() {
     b.textContent = d.label;
     b.onclick = () => {
       deviceId = d.id;
+      document.querySelectorAll('#devices .btn').forEach((x) => x.classList.remove('active'));
+      b.classList.add('active');
       paintPreviewOnly();
-      log('device ' + d.id);
+      log('device ' + d.id + ' · breakpoint adaptativo');
     };
     $('devices')?.appendChild(b);
   });
@@ -266,28 +269,46 @@ export function bootBuilder() {
     $('preview').innerHTML = '';
     log('preview limpiado');
   };
-  $('lisp').addEventListener('input', () => { lispDirty = true; });
-  $('btn-apply-lisp').onclick = () => {
-    const src = $('lisp').value;
-    const n = guard('lisp', () => applyLispSnippet(src, tree), 0);
-    if (n === 0 && src.includes('set-prop') === false) {
-      reportError(
-        new StudioError('LispAI editor: use (set-prop id key "valor") para parches seguros', {
-          pattern: 'lisp-safe-subset',
-          fix: 'Ejemplo: (set-prop n1 text "Hola")',
-          where: 'lisp',
-        }),
-        'lisp'
-      );
-    } else {
-      lispDirty = false;
-      refresh();
-      log('lisp patches: ' + n);
+  function applyLispNow(fromHot = false) {
+    const src = $('lisp')?.value || '';
+    showError(null);
+    const result = guard('lisp', () => applyLispSource(src, tree), null);
+    if (!result) {
+      const e = getLastError();
+      if (e) showError(e);
+      return false;
     }
-  };
+    if (result.mode === 'tree' && result.nodes) {
+      tree.length = 0;
+      result.nodes.forEach((n) => tree.push(n));
+      selectedId = tree[0]?.id || null;
+    }
+    if (result.states?.length) {
+      result.states.forEach((s) => stateSet(s.name, s.value));
+    }
+    lispDirty = false;
+    refresh();
+    log((fromHot ? 'hot-reload: ' : 'lisp: ') + result.message);
+    return true;
+  }
+
+  let hotTimer = null;
+  $('lisp').addEventListener('input', () => {
+    lispDirty = true;
+    clearTimeout(hotTimer);
+    hotTimer = setTimeout(() => {
+      // Hot-reload only when source looks complete (balanced parens)
+      const s = $('lisp').value || '';
+      const open = (s.match(/\(/g) || []).length;
+      const close = (s.match(/\)/g) || []).length;
+      if (open > 0 && open === close) applyLispNow(true);
+    }, 500);
+  });
+  $('btn-apply-lisp').onclick = () => applyLispNow(false);
   $('btn-sync-lisp').onclick = () => {
     lispDirty = false;
     $('lisp').value = treeToLisp(tree);
+    log('lisp sincronizado desde árbol');
   };
   $('btn-export').onclick = () => {
     const app = treeToApp(tree, { name: $('app-name').value || 'app', states: stateDump() });
@@ -308,7 +329,7 @@ export function bootBuilder() {
       if (!r.ok) throw new Error(j.error || 'deploy failed');
       log('deploy PWA ' + j.url + ' rootcid=' + (j.rootcid || '—'));
       $('status').textContent = 'deployed';
-      if (j.url) window.open(j.url, '_blank');
+      if (j.url) window.open(j.url.startsWith('http') ? j.url : (location.origin + j.url), '_blank', 'noopener');
     } catch (e) {
       reportError(e, 'deploy');
     }
@@ -364,6 +385,34 @@ export function bootBuilder() {
       list.appendChild(card);
     });
   }
+  $('btn-logic-test')?.addEventListener('click', async () => {
+    const url = $('logic-url')?.value || '/v1/data';
+    const keys = ($('logic-states')?.value || '').split(',').map((s) => s.trim()).filter(Boolean);
+    const body = {};
+    const dump = stateDump();
+    keys.forEach((k) => { body[k] = dump[k] ?? ''; });
+    try {
+      const r = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+      const j = await r.json();
+      if ($('logic-out')) $('logic-out').textContent = JSON.stringify(j, null, 2);
+      log('logic POST ' + url + ' ok');
+    } catch (e) {
+      if ($('logic-out')) $('logic-out').textContent = String(e.message || e);
+      reportError(e, 'logic');
+    }
+  });
+  $('btn-logic-get')?.addEventListener('click', async () => {
+    const url = $('logic-url')?.value || '/v1/data';
+    try {
+      const r = await fetch(url);
+      const j = await r.json();
+      if ($('logic-out')) $('logic-out').textContent = JSON.stringify(j, null, 2);
+      log('logic GET ok');
+    } catch (e) {
+      reportError(e, 'logic');
+    }
+  });
+
   $('btn-examples')?.addEventListener('click', () => drawer?.classList.toggle('hidden'));
   $('btn-close-examples')?.addEventListener('click', () => drawer?.classList.add('hidden'));
 
