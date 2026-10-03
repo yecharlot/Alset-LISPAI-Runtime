@@ -25,3 +25,8 @@
 Plantillas · Componentes · Colores · **Iconos** (clic = insertar)
 
 | [COMPONENTES_Y_CONECTORES.es.md](COMPONENTES_Y_CONECTORES.es.md) | Crear componentes, conectores, estados, deploy ANS |
+
+
+## Paquete de ejemplos v2
+
+→ **[docs/EJEMPLOS_PACK.es.md](docs/EJEMPLOS_PACK.es.md)**

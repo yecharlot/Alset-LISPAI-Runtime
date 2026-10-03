@@ -269,3 +269,8 @@ Ejemplos nuevos: *Estados y botones*, *CRUD + tabla*, *Navegación tabs*, *Galer
 ## Componentes, conectores y estados avanzados
 
 → **[docs/COMPONENTES_Y_CONECTORES.es.md](docs/COMPONENTES_Y_CONECTORES.es.md)**
+
+
+## Paquete de ejemplos v2
+
+→ **[docs/EJEMPLOS_PACK.es.md](docs/EJEMPLOS_PACK.es.md)**

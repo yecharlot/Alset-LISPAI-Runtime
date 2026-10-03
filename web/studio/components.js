@@ -57,7 +57,7 @@ export const CATALOG = [
   ]},
   { group: 'Formas', items: [
     { type: 'shape', label: 'Círculo', defaults: { kind: 'circle', size: 72, color: 'primary', text: '' } },
-    { type: 'shape', label: 'Blob', defaults: { kind: 'blob', size: 88, from: '#f5c542', to: '#fb7185' } },
+    { type: 'shape', label: 'Blob', defaults: { kind: 'blob', size: 88, from: '#f4b400', to: '#fb7185' } },
     { type: 'shape', label: 'Recorte', defaults: { kind: 'cut', width: 120, height: 80, from: '#5b9cf5', to: '#22d3ee' } },
     { type: 'shape', label: 'Píldora', defaults: { kind: 'pill', width: 140, height: 40, color: 'primary', text: 'Pill' } },
     { type: 'shape', label: 'Hexágono', defaults: { kind: 'hex', size: 72, from: '#a3e635', to: '#2dd4bf' } },
@@ -96,7 +96,7 @@ export const CATALOG = [
     { type: 'icon', label: 'Icon', defaults: { name: 'pulse', size: 24, color: 'primary' } },
     { type: 'fab', label: 'FAB flotante', defaults: { text: '+', action: 'add' } },
     { type: 'layer', label: 'Layer', defaults: {}, container: true },
-    { type: 'gradient', label: 'Degradado', defaults: { from: '#0b0e14', to: '#f5c542', angle: 135, pad: 16 }, container: true },
+    { type: 'gradient', label: 'Degradado', defaults: { from: '#0b0e14', to: '#f4b400', angle: 135, pad: 16 }, container: true },
     { type: 'gradient-image', label: 'Imagen + degradado', defaults: { src: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=800&q=60', from: 'transparent', to: 'rgba(0,0,0,0.75)', height: 180, title: 'Cover' }, container: true },
     { type: 'glass', label: 'Glass / blur', defaults: { pad: 16, gap: 8 }, container: true },
     { type: 'toast', label: 'Toast', defaults: { text: 'Guardado', duration: 2200 } },
@@ -389,7 +389,7 @@ export const TEMPLATES = [
 ];
 
 export const THEME_COLORS = {
-  primary: '#f5c542',
+  primary: '#f4b400',
   secondary: '#5b9cf5',
   background: '#09090b',
   surface: '#161922',
@@ -403,7 +403,7 @@ export const THEME_COLORS = {
 export const THEME_PRESETS = {
   'gold-night': {
     name: 'Gold Night',
-    primary: '#f5c542', secondary: '#5b9cf5', background: '#0b0e14', surface: '#12171f',
+    primary: '#f4b400', secondary: '#5b9cf5', background: '#0b0e14', surface: '#12171f',
     text: '#eef1f6', muted: '#8b93a7', success: '#34d399', danger: '#f87171',
   },
   'ocean': {
