@@ -277,3 +277,7 @@ Ejemplos nuevos: *Estados y botones*, *CRUD + tabla*, *Navegación tabs*, *Galer
 
 ## Charts y ejemplos funcionales
 → docs/EJEMPLOS_PACK.es.md · componentes chart-bar, chart-line, toast
+
+## Mapas MapLibre
+→ docs/MAPAS_MAPLIBRE.es.md
+

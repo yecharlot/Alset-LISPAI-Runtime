@@ -106,6 +106,8 @@ export const CATALOG = [
     { type: 'animate', label: 'Animate', defaults: { duration: 400 }, container: true },
     { type: 'video', label: 'Video', defaults: { src: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4', height: 200, controls: true } },
     { type: 'audio', label: 'Audio', defaults: { src: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3', title: 'Demo audio', controls: true } },
+    { type: 'geocode', label: 'Geocodificar', defaults: { title: 'Buscar dirección', latState: 'mapLat', lngState: 'mapLng' } },
+    { type: 'address-picker', label: 'Selector dirección', defaults: { title: 'Provincia / municipio', latState: 'mapLat', lngState: 'mapLng' } },
     { type: 'map', label: 'Mapa', defaults: { height: 200, lat: 23.1136, lng: -82.3666, zoom: 13, label: 'La Habana' } },
     { type: 'lazy-column', label: 'Lazy Column', defaults: { state: 'feed', height: 280, pageSize: 8, empty: 'Sin ítems' } },
     { type: 'lazy-row', label: 'Lazy Row', defaults: { state: 'chips', height: 56, pageSize: 6 } },

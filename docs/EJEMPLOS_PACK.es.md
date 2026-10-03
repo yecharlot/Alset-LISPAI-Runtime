@@ -56,3 +56,7 @@ Nodo Alset → registrar archivos → /w/<id>.app.ans
 4. Gráficos: `state` = array `{label, value}`.
 
 Ver también: [COMPONENTES_Y_CONECTORES.es.md](COMPONENTES_Y_CONECTORES.es.md).
+
+## Mapas MapLibre
+→ docs/MAPAS_MAPLIBRE.es.md
+

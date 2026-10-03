@@ -285,7 +285,9 @@ function el(tag, cls, text) {
             let v = p.setValue;
             if (v === 'true') v = true;
             else if (v === 'false') v = false;
-            else if (v != null && v !== '' && !Number.isNaN(Number(v)) && typeof v !== 'boolean') v = Number(v);
+            else if (typeof v === 'string' && (v.trim().startsWith('[') || v.trim().startsWith('{'))) {
+              try { v = JSON.parse(v); } catch (_) {}
+            } else if (v != null && v !== '' && !Number.isNaN(Number(v)) && typeof v !== 'boolean') v = Number(v);
             if (op === 'incf' || op === 'inc' || op === '+') {
               const cur = Number(ctx.state?.[p.setState]) || 0;
               const d = (v != null && v !== '') ? Number(v) || 1 : 1;
@@ -1476,52 +1478,257 @@ function el(tag, cls, text) {
         break;
       }
       case 'map': {
-        const lat = Number(p.lat ?? ctx.state?.[p.latState] ?? 23.1136);
-        const lng = Number(p.lng ?? ctx.state?.[p.lngState] ?? -82.3666);
-        const zoom = Number(p.zoom || 13);
-        const h = Number(p.height || 200);
-        addClass(wrap, 'rt-map');
-        wrap.style.height = h + 'px';
-        wrap.style.borderRadius = '12px';
+        /* MapLibre GL — misma base que Alset-JS-Runtime MapNode */
+        const lat = Number(p.lat ?? ctx.state?.[p.latState] ?? 20.1453);
+        const lng = Number(p.lng ?? ctx.state?.[p.lngState] ?? -75.2062);
+        const zoom = Number(p.zoom || 12);
+        const h = Number(p.height || 240);
+        addClass(wrap, 'rt-map', 'rt-card');
+        wrap.style.padding = '0';
         wrap.style.overflow = 'hidden';
+        wrap.style.height = h + 'px';
+        wrap.style.borderRadius = '14px';
         wrap.style.border = '1px solid ' + THEME.line;
-        // OpenStreetMap embed (sin API key) al estilo Alset
-        const delta = 0.08 / Math.max(zoom / 10, 1);
-        const bbox = [lng - delta, lat - delta * 0.7, lng + delta, lat + delta * 0.7].join('%2C');
-        const iframe = document.createElement('iframe');
-        iframe.title = p.title || 'Mapa';
-        iframe.width = '100%';
-        iframe.height = String(h);
-        iframe.style.border = '0';
-        iframe.loading = 'lazy';
-        iframe.referrerPolicy = 'no-referrer-when-downgrade';
-        iframe.style.cssText = 'width:100%;height:' + h + 'px;border:0;background:#111';
-        const mapUrl =
-          'https://www.openstreetmap.org/export/embed.html?bbox=' +
-          bbox +
-          '&layer=mapnik&marker=' +
-          lat +
-          '%2C' +
-          lng;
-        // No cargar OSM hasta que el mapa entre en viewport (evita congelar al abrir la app)
-        const bootMap = () => { if (!iframe.src) iframe.src = mapUrl; };
-        if (typeof IntersectionObserver !== 'undefined') {
-          const io = new IntersectionObserver((ents) => {
-            if (ents.some((e) => e.isIntersecting)) { bootMap(); io.disconnect(); }
-          }, { rootMargin: '100px' });
-          setTimeout(() => io.observe(wrap), 0);
-        } else bootMap();
-        wrap.appendChild(iframe);
-        const link = document.createElement('a');
-        link.className = 'rt-muted';
-        link.href = 'https://www.openstreetmap.org/?mlat=' + lat + '&mlon=' + lng + '#map=' + zoom + '/' + lat + '/' + lng;
-        link.target = '_blank';
-        link.rel = 'noopener';
-        link.textContent = (p.label || 'Abrir en OSM') + ' · ' + lat.toFixed(4) + ', ' + lng.toFixed(4);
-        link.style.display = 'block';
-        link.style.padding = '6px 4px';
-        link.style.fontSize = '11px';
-        wrap.appendChild(link);
+        const container = el('div', 'rt-map-gl');
+        container.style.cssText = 'width:100%;height:' + h + 'px;background:#111';
+        wrap.appendChild(container);
+        const status = el('div', 'rt-muted', p.label || 'Mapa Alset · MapLibre');
+        status.style.padding = '6px 10px';
+        wrap.appendChild(status);
+
+        const routeState = p.routeState || 'routeCoords';
+        const markersState = p.markersState || 'mapMarkers';
+        let route = ctx.state?.[routeState];
+        if (typeof route === 'string') {
+          try { route = JSON.parse(route); } catch (_) { route = null; }
+        }
+        let markers = ctx.state?.[markersState];
+        if (typeof markers === 'string') {
+          try { markers = JSON.parse(markers); } catch (_) { markers = null; }
+        }
+
+        const ensureMapLibre = (cb) => {
+          if (typeof window !== 'undefined' && window.maplibregl) return cb();
+          if (typeof document === 'undefined') return;
+          if (window.__alsetMapLibreLoading) {
+            window.__alsetMapLibreLoading.push(cb);
+            return;
+          }
+          window.__alsetMapLibreLoading = [cb];
+          const s = document.createElement('script');
+          s.src = 'https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js';
+          s.onload = () => {
+            const q = window.__alsetMapLibreLoading || [];
+            window.__alsetMapLibreLoading = null;
+            q.forEach((fn) => { try { fn(); } catch (e) { console.warn(e); } });
+          };
+          s.onerror = () => { status.textContent = 'No se pudo cargar MapLibre'; };
+          document.head.appendChild(s);
+          if (!document.getElementById('alset-maplibre-css')) {
+            const l = document.createElement('link');
+            l.id = 'alset-maplibre-css';
+            l.rel = 'stylesheet';
+            l.href = 'https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css';
+            document.head.appendChild(l);
+          }
+        };
+
+        const boot = () => {
+          try {
+            const map = new window.maplibregl.Map({
+              container: container,
+              style: p.styleUrl || 'https://demotiles.maplibre.org/style.json',
+              center: [lng, lat],
+              zoom: zoom,
+              attributionControl: true,
+            });
+            map.addControl(new window.maplibregl.NavigationControl({ showCompass: false }), 'top-right');
+            map.on('load', () => {
+              // Markers
+              const mk = Array.isArray(markers) ? markers : [];
+              mk.forEach((m) => {
+                const mlat = Number(m.lat ?? m[1]);
+                const mlng = Number(m.lng ?? m.lon ?? m[0]);
+                if (!Number.isFinite(mlat) || !Number.isFinite(mlng)) return;
+                const elM = document.createElement('div');
+                elM.className = 'rt-map-marker';
+                elM.title = m.label || m.name || '';
+                elM.style.cssText = 'width:14px;height:14px;border-radius:50%;background:' + THEME.primary + ';border:2px solid #fff;box-shadow:0 0 8px rgba(0,0,0,.5)';
+                new window.maplibregl.Marker({ element: elM }).setLngLat([mlng, mlat]).addTo(map);
+              });
+              // Polyline route: accept [[lat,lng],...] or [[lng,lat],...] or {coordinates: [...]}
+              let coords = null;
+              if (route && route.coordinates) coords = route.coordinates;
+              else if (Array.isArray(route)) coords = route;
+              if (coords && coords.length >= 2) {
+                // normalize to [lng, lat]
+                const line = coords.map((pt) => {
+                  if (Array.isArray(pt)) {
+                    // if first abs > 90 treat as lng,lat else lat,lng for Cuba-ish
+                    const a = Number(pt[0]), b = Number(pt[1]);
+                    if (Math.abs(a) > 90) return [a, b];
+                    return [b, a]; // lat,lng → lng,lat
+                  }
+                  return [Number(pt.lng ?? pt.lon), Number(pt.lat)];
+                }).filter((pt) => Number.isFinite(pt[0]) && Number.isFinite(pt[1]));
+                if (line.length >= 2) {
+                  map.addSource('alset-route', {
+                    type: 'geojson',
+                    data: { type: 'Feature', properties: {}, geometry: { type: 'LineString', coordinates: line } },
+                  });
+                  map.addLayer({
+                    id: 'alset-route-line',
+                    type: 'line',
+                    source: 'alset-route',
+                    layout: { 'line-join': 'round', 'line-cap': 'round' },
+                    paint: {
+                      'line-color': p.routeColor || THEME.primary,
+                      'line-width': Number(p.routeWidth) || 5,
+                      'line-opacity': 0.95,
+                    },
+                  });
+                  try {
+                    const bounds = line.reduce((b, c) => b.extend(c), new window.maplibregl.LngLatBounds(line[0], line[0]));
+                    map.fitBounds(bounds, { padding: 40, maxZoom: 14 });
+                  } catch (_) {}
+                  status.textContent = (p.label || 'Ruta') + ' · ' + line.length + ' puntos';
+                }
+              } else {
+                // center marker
+                const elC = document.createElement('div');
+                elC.style.cssText = 'width:16px;height:16px;border-radius:50%;background:' + THEME.primary + ';border:2px solid #fff';
+                new window.maplibregl.Marker({ element: elC }).setLngLat([lng, lat]).addTo(map);
+                status.textContent = (p.label || 'Mapa') + ' · ' + lat.toFixed(4) + ', ' + lng.toFixed(4);
+              }
+              map.resize();
+            });
+            container.__alsetMap = map;
+          } catch (e) {
+            status.textContent = 'Mapa error: ' + (e.message || e);
+          }
+        };
+        ensureMapLibre(boot);
+        break;
+      }
+
+      case 'geocode': {
+        /* Dirección → coords (Nominatim) y guarda en state */
+        addClass(wrap, 'rt-card');
+        wrap.appendChild(el('div', 'rt-form-title', p.title || 'Buscar dirección'));
+        const inp = el('input', 'rt-input');
+        inp.placeholder = p.placeholder || 'Calle, municipio, provincia…';
+        inp.value = ctx.state?.[p.queryState || 'geoQuery'] || p.query || '';
+        wrap.appendChild(inp);
+        const out = el('div', 'rt-muted', '');
+        const run = () => {
+          const q = (inp.value || '').trim();
+          if (!q) return;
+          out.textContent = 'Buscando…';
+          if (ctx.setState) ctx.setState(p.queryState || 'geoQuery', q);
+          const url = 'https://nominatim.openstreetmap.org/search?format=json&limit=1&q=' + encodeURIComponent(q);
+          fetch(url, { headers: { 'Accept-Language': 'es', 'User-Agent': 'AlsetStudio/1.0' } })
+            .then((r) => r.json())
+            .then((arr) => {
+              if (!arr || !arr[0]) { out.textContent = 'Sin resultados'; return; }
+              const hit = arr[0];
+              const la = Number(hit.lat), lo = Number(hit.lon);
+              if (ctx.setState) {
+                ctx.setState(p.latState || 'mapLat', la);
+                ctx.setState(p.lngState || 'mapLng', lo);
+                ctx.setState(p.resultState || 'geoResult', {
+                  lat: la, lng: lo, display: hit.display_name, address: hit.display_name,
+                });
+              }
+              out.textContent = hit.display_name;
+              ctx.remount && ctx.remount();
+            })
+            .catch((e) => { out.textContent = String(e.message || e); });
+        };
+        const b = el('button', 'rt-btn', p.buttonText || 'Geocodificar');
+        b.type = 'button';
+        b.onclick = run;
+        wrap.appendChild(b);
+        wrap.appendChild(out);
+        if (p.auto && inp.value) setTimeout(run, 40);
+        break;
+      }
+
+      case 'address-picker': {
+        /* Selector provincia / municipio / localidad (datos en state o defaults Cuba) */
+        addClass(wrap, 'rt-card');
+        wrap.appendChild(el('div', 'rt-form-title', p.title || 'Dirección'));
+        let catalog = ctx.state?.[p.catalogState || 'addressCatalog'];
+        if (typeof catalog === 'string') {
+          try { catalog = JSON.parse(catalog); } catch (_) { catalog = null; }
+        }
+        if (!Array.isArray(catalog) || !catalog.length) {
+          catalog = [
+            { province: 'Guantánamo', municipality: 'Guantánamo', locality: 'Centro', address: 'Parque Central', lat: 20.1453, lng: -75.2062 },
+            { province: 'Guantánamo', municipality: 'Baracoa', locality: 'Centro', address: 'Malecón', lat: 20.3467, lng: -74.4964 },
+            { province: 'Guantánamo', municipality: 'Moa', locality: 'Centro', address: 'Plaza', lat: 20.6550, lng: -74.9500 },
+            { province: 'Santiago de Cuba', municipality: 'Santiago de Cuba', locality: 'Centro', address: 'Céspedes', lat: 20.0217, lng: -75.8267 },
+            { province: 'Santiago de Cuba', municipality: 'Santiago de Cuba', locality: 'Aeropuerto', address: 'Antonio Maceo', lat: 19.9698, lng: -75.8354 },
+            { province: 'Holguín', municipality: 'Holguín', locality: 'Centro', address: 'Parque Calixto', lat: 20.8872, lng: -76.2631 },
+          ];
+        }
+        const provinces = [...new Set(catalog.map((x) => x.province))];
+        const selP = document.createElement('select');
+        selP.className = 'rt-input';
+        provinces.forEach((pr) => {
+          const o = document.createElement('option');
+          o.value = pr; o.textContent = pr;
+          selP.appendChild(o);
+        });
+        const selM = document.createElement('select');
+        selM.className = 'rt-input';
+        const selL = document.createElement('select');
+        selL.className = 'rt-input';
+        const fillM = () => {
+          const pr = selP.value;
+          const muns = [...new Set(catalog.filter((x) => x.province === pr).map((x) => x.municipality))];
+          selM.innerHTML = '';
+          muns.forEach((m) => { const o = document.createElement('option'); o.value = m; o.textContent = m; selM.appendChild(o); });
+          fillL();
+        };
+        const fillL = () => {
+          const pr = selP.value, mu = selM.value;
+          const locs = catalog.filter((x) => x.province === pr && x.municipality === mu);
+          selL.innerHTML = '';
+          locs.forEach((x) => {
+            const o = document.createElement('option');
+            o.value = x.locality + '|' + x.address;
+            o.textContent = x.locality + ' — ' + x.address;
+            o.dataset.lat = x.lat; o.dataset.lng = x.lng;
+            selL.appendChild(o);
+          });
+        };
+        const apply = () => {
+          const opt = selL.options[selL.selectedIndex];
+          if (!opt) return;
+          const la = Number(opt.dataset.lat), lo = Number(opt.dataset.lng);
+          const label = selP.value + ', ' + selM.value + ', ' + opt.textContent;
+          if (ctx.setState) {
+            ctx.setState(p.latState || 'mapLat', la);
+            ctx.setState(p.lngState || 'mapLng', lo);
+            ctx.setState(p.addressState || 'address', label);
+            const markers = [{ lat: la, lng: lo, label }];
+            ctx.setState(p.markersState || 'mapMarkers', markers);
+          }
+          ctx.remount && ctx.remount();
+        };
+        selP.onchange = fillM;
+        selM.onchange = fillL;
+        wrap.appendChild(el('div', 'rt-muted', 'Provincia'));
+        wrap.appendChild(selP);
+        wrap.appendChild(el('div', 'rt-muted', 'Municipio'));
+        wrap.appendChild(selM);
+        wrap.appendChild(el('div', 'rt-muted', 'Localidad / dirección'));
+        wrap.appendChild(selL);
+        const b = el('button', 'rt-btn', p.buttonText || 'Usar en mapa');
+        b.type = 'button';
+        b.onclick = apply;
+        wrap.appendChild(b);
+        fillM();
         break;
       }
 
@@ -1801,8 +2008,8 @@ function el(tag, cls, text) {
 .rt-overlay-root > *{pointer-events:auto}
 .rt-drawer{position:relative;min-height:0;height:0;overflow:visible;margin:0;padding:0;border:0}
 .rt-drawer-layer{position:absolute;inset:0;z-index:50;pointer-events:auto}
-.rt-drawer-backdrop{position:absolute;inset:0;background:rgba(0,0,0,.45);z-index:1}
-.rt-drawer-panel{position:absolute;top:0;bottom:0;left:0;width:min(280px,82%);max-width:100%;background:' + THEME.card + ';z-index:2;padding:16px;box-shadow:0 0 40px rgba(0,0,0,.5);transform:translateX(-105%);transition:transform .28s ease;overflow:auto;box-sizing:border-box}
+.rt-drawer-backdrop{position:absolute;inset:0;background:rgba(0,0,0,.55);z-index:1;backdrop-filter:blur(2px)}
+.rt-drawer-panel{position:absolute;top:0;bottom:0;left:0;width:min(280px,82%);max-width:100%;background:#141414;z-index:2;padding:16px;box-shadow:0 0 40px rgba(0,0,0,.5);transform:translateX(-105%);transition:transform .28s ease;overflow:auto;box-sizing:border-box}
 .rt-drawer-layer.right .rt-drawer-panel{right:0;left:auto;transform:translateX(105%)}
 .rt-drawer-layer.open .rt-drawer-panel{transform:translateX(0)}
 .rt-drawer-title{font-weight:700;color:${THEME.primary};margin-bottom:12px}
@@ -1839,7 +2046,7 @@ function el(tag, cls, text) {
 @keyframes rtSpin{to{transform:rotate(360deg)}}
 
 
-.rt-drawer-panel{display:flex;flex-direction:column;padding:0!important}
+.rt-drawer-panel{display:flex;flex-direction:column;padding:0!important;background:#141414!important;opacity:1!important}
 .rt-drawer-head{display:flex;align-items:center;gap:12px;padding:20px 16px 16px;border-bottom:1px solid ${THEME.line};background:linear-gradient(135deg,rgba(245,197,66,0.12),transparent)}
 .rt-drawer-avatar{width:44px;height:44px;border-radius:14px;background:${THEME.primary};color:#111;font-weight:800;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0}
 .rt-drawer-head-text{min-width:0}
