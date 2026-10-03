@@ -54,6 +54,7 @@ body { display: flex; flex-direction: column; overflow: hidden; }
 .float-panel.hidden-panel { display: none !important; }
 .float-panel.dragging { opacity: 0.92; z-index: 50; }
 .float-panel .panel-head {
+  touch-action: none;
   display: flex; align-items: center; gap: 6px;
   padding: 6px 8px;
   background: #101010;
@@ -61,6 +62,13 @@ body { display: flex; flex-direction: column; overflow: hidden; }
   cursor: move;
   user-select: none;
   flex-shrink: 0;
+}
+.float-panel .panel-head::before {
+  content: "⋮⋮";
+  color: var(--gold);
+  font-size: 12px;
+  letter-spacing: -2px;
+  opacity: 0.7;
 }
 .float-panel .panel-head strong {
   font-size: 11px; color: var(--gold); letter-spacing: .04em; flex: 1;

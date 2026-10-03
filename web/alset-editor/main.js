@@ -339,7 +339,325 @@ window.alsetSketchToCode = function (spec) {
     body.join('\n') + '\n  });\n}\n';
 };
 
-// —— boot ——
+function enableFloatingPanels() {
+  const ws = document.getElementById('workspace');
+  if (!ws) {
+    console.error('[alset-editor] workspace no encontrado');
+    return;
+  }
+
+  document.querySelectorAll('.float-panel').forEach((panel) => {
+    // Normalizar: si solo tiene right, convertir a left
+    const cs = getComputedStyle(panel);
+    if ((!panel.style.left || panel.style.left === 'auto') && panel.style.right) {
+      const wsR = ws.getBoundingClientRect();
+      const pR = panel.getBoundingClientRect();
+      panel.style.left = (pR.left - wsR.left) + 'px';
+      panel.style.right = 'auto';
+    }
+
+    const head = panel.querySelector('.panel-head') || panel.querySelector('[data-drag]');
+    const handle = panel.querySelector('.resize-handle') || panel.querySelector('[data-resize]');
+
+    if (head) {
+      head.style.cursor = 'move';
+      head.addEventListener('mousedown', onDragStart);
+      head.addEventListener('touchstart', onDragStart, { passive: false });
+    }
+    if (handle) {
+      handle.addEventListener('mousedown', onResizeStart);
+      handle.addEventListener('touchstart', onResizeStart, { passive: false });
+    }
+
+    function onDragStart(e) {
+      if (e.target.closest('[data-close]') || e.target.closest('button.ph-btn')) return;
+      e.preventDefault();
+      e.stopPropagation();
+      const pt = e.touches ? e.touches[0] : e;
+      const wsRect = ws.getBoundingClientRect();
+      const rect = panel.getBoundingClientRect();
+      const ox = pt.clientX - rect.left;
+      const oy = pt.clientY - rect.top;
+      panel.classList.add('dragging');
+      panel.style.zIndex = '60';
+      panel.style.right = 'auto';
+      panel.style.bottom = 'auto';
+      panel.style.left = (rect.left - wsRect.left) + 'px';
+      panel.style.top = (rect.top - wsRect.top) + 'px';
+
+      function onMove(ev) {
+        const p = ev.touches ? ev.touches[0] : ev;
+        let left = p.clientX - wsRect.left - ox;
+        let top = p.clientY - wsRect.top - oy;
+        left = Math.max(0, Math.min(left, ws.clientWidth - 100));
+        top = Math.max(0, Math.min(top, ws.clientHeight - 48));
+        panel.style.left = left + 'px';
+        panel.style.top = top + 'px';
+      }
+      function onUp() {
+        panel.classList.remove('dragging');
+        panel.style.zIndex = '';
+        document.removeEventListener('mousemove', onMove);
+        document.removeEventListener('mouseup', onUp);
+        document.removeEventListener('touchmove', onMove);
+        document.removeEventListener('touchend', onUp);
+        saveLayout();
+      }
+      document.addEventListener('mousemove', onMove);
+      document.addEventListener('mouseup', onUp);
+      document.addEventListener('touchmove', onMove, { passive: false });
+      document.addEventListener('touchend', onUp);
+    }
+
+    function onResizeStart(e) {
+      e.preventDefault();
+      e.stopPropagation();
+      const pt = e.touches ? e.touches[0] : e;
+      const startX = pt.clientX;
+      const startY = pt.clientY;
+      const startW = panel.offsetWidth;
+      const startH = panel.offsetHeight;
+      function onMove(ev) {
+        const p = ev.touches ? ev.touches[0] : ev;
+        panel.style.width = Math.max(200, startW + (p.clientX - startX)) + 'px';
+        panel.style.height = Math.max(140, startH + (p.clientY - startY)) + 'px';
+        if (panel.id === 'panel-right' && cm) {
+          try {
+            const body = document.getElementById('code-body');
+            cm.setSize('100%', Math.max(160, (body ? body.clientHeight : 200) - 36));
+            cm.refresh();
+          } catch (_) {}
+        }
+      }
+      function onUp() {
+        document.removeEventListener('mousemove', onMove);
+        document.removeEventListener('mouseup', onUp);
+        document.removeEventListener('touchmove', onMove);
+        document.removeEventListener('touchend', onUp);
+        saveLayout();
+        if (cm) try { cm.refresh(); } catch (_) {}
+      }
+      document.addEventListener('mousemove', onMove);
+      document.addEventListener('mouseup', onUp);
+      document.addEventListener('touchmove', onMove, { passive: false });
+      document.addEventListener('touchend', onUp);
+    }
+  });
+
+  document.querySelectorAll('[data-close]').forEach((btn) => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const id = btn.getAttribute('data-close');
+      const panel = document.querySelector('.float-panel[data-panel="' + id + '"]');
+      if (panel) panel.classList.add('hidden-panel');
+      document.body.classList.remove('panels-' + id);
+      document.querySelectorAll('.ptog[data-panel="' + id + '"]').forEach((b) => b.classList.remove('active'));
+    });
+  });
+
+  console.log('[alset-editor] paneles flotantes listos:', document.querySelectorAll('.float-panel').length);
+}
+
+function saveLayout() {
+  try {
+    const layout = {};
+    document.querySelectorAll('.float-panel').forEach((p) => {
+      layout[p.id] = {
+        left: p.style.left,
+        top: p.style.top,
+        width: p.style.width,
+        height: p.style.height,
+        hidden: p.classList.contains('hidden-panel'),
+      };
+    });
+    localStorage.setItem('alset-js-editor-layout', JSON.stringify(layout));
+  } catch (_) {}
+}
+
+function loadLayout() {
+  try {
+    const raw = localStorage.getItem('alset-js-editor-layout');
+    if (!raw) return;
+    const layout = JSON.parse(raw);
+    Object.keys(layout).forEach((id) => {
+      const p = document.getElementById(id);
+      const L = layout[id];
+      if (!p || !L) return;
+      if (L.left) { p.style.left = L.left; p.style.right = 'auto'; }
+      if (L.top) p.style.top = L.top;
+      if (L.width) p.style.width = L.width;
+      if (L.height) p.style.height = L.height;
+      p.classList.toggle('hidden-panel', !!L.hidden);
+    });
+  } catch (_) {}
+}
+
+function resetLayout() {
+  try { localStorage.removeItem('alset-js-editor-layout'); } catch (_) {}
+  location.reload();
+}
+
+/* —— Preview: editar componentes —— */
+let editMode = false;
+let selectedEl = null;
+
+function markEditable(root) {
+  if (!root) return;
+  root.querySelectorAll('.alset-editable').forEach((el) => {
+    el.classList.remove('alset-editable', 'selected');
+    el.removeAttribute('data-alset-edit');
+  });
+  const candidates = root.querySelectorAll('*');
+  candidates.forEach((el) => {
+    if (el.closest('#inspector')) return;
+    const tag = el.tagName;
+    if (['SCRIPT', 'STYLE', 'SVG', 'PATH', 'INPUT', 'TEXTAREA', 'SELECT'].includes(tag)) return;
+    const text = (el.childNodes.length === 1 && el.childNodes[0].nodeType === 3)
+      ? (el.textContent || '').trim()
+      : (tag === 'BUTTON' || tag === 'SPAN' || tag === 'P' || tag === 'H1' || tag === 'H2' || tag === 'H3' || tag === 'LABEL' || tag === 'A')
+        ? (el.innerText || '').trim()
+        : '';
+    if (text && text.length > 0 && text.length < 300) {
+      el.classList.add('alset-editable');
+      el.setAttribute('data-alset-edit', '1');
+      el.setAttribute('data-prev-text', text);
+    }
+  });
+}
+
+function selectPreviewEl(el) {
+  if (selectedEl) {
+    selectedEl.classList.remove('selected');
+    if (selectedEl.isContentEditable) selectedEl.contentEditable = 'false';
+  }
+  selectedEl = el;
+  const insp = document.getElementById('inspector');
+  if (!el) {
+    if (insp) insp.classList.add('hidden');
+    return;
+  }
+  el.classList.add('selected');
+  if (insp) insp.classList.remove('hidden');
+  const text = (el.innerText || el.textContent || '').trim();
+  const ti = document.getElementById('insp-text');
+  const ci = document.getElementById('insp-color');
+  const si = document.getElementById('insp-size');
+  if (ti) ti.value = text;
+  try {
+    const cs = getComputedStyle(el);
+    const m = String(cs.color).match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/);
+    if (m && ci) {
+      ci.value = '#' + [m[1], m[2], m[3]].map((x) => Number(x).toString(16).padStart(2, '0')).join('');
+    }
+    const fs = parseInt(cs.fontSize, 10);
+    if (fs && si) si.value = String(fs);
+  } catch (_) {}
+}
+
+function applyInspector() {
+  if (!selectedEl) return;
+  const text = document.getElementById('insp-text')?.value ?? '';
+  const color = document.getElementById('insp-color')?.value;
+  const size = document.getElementById('insp-size')?.value;
+  selectedEl.setAttribute('data-prev-text', (selectedEl.innerText || '').trim());
+  if (selectedEl.childNodes.length === 1 && selectedEl.childNodes[0].nodeType === 3) {
+    selectedEl.childNodes[0].textContent = text;
+  } else {
+    selectedEl.textContent = text;
+  }
+  if (color) selectedEl.style.color = color;
+  if (size) selectedEl.style.fontSize = size + 'px';
+  setStatus('Componente actualizado en preview', true);
+}
+
+function syncSelectionToCode() {
+  if (!selectedEl) return;
+  const text = document.getElementById('insp-text')?.value ?? '';
+  const prev = selectedEl.getAttribute('data-prev-text') || '';
+  const code = getCode();
+  if (!prev) {
+    setStatus('No hay texto previo para buscar en el código', false);
+    return;
+  }
+  const lit1 = JSON.stringify(prev);
+  const lit2 = JSON.stringify(text);
+  if (code.includes(lit1)) {
+    setCode(code.replace(lit1, lit2));
+    selectedEl.setAttribute('data-prev-text', text);
+    setStatus('Sincronizado al código', true);
+    return;
+  }
+  // fallback: replace first occurrence of prev as plain in quotes
+  const idx = code.indexOf(prev);
+  if (idx >= 0) {
+    setCode(code.slice(0, idx) + text + code.slice(idx + prev.length));
+    selectedEl.setAttribute('data-prev-text', text);
+    setStatus('Sincronizado (coincidencia parcial)', true);
+    return;
+  }
+  setStatus('No se encontró «' + prev.slice(0, 40) + '» en el código', false);
+}
+
+function wirePreviewEdit() {
+  const root = document.getElementById('preview');
+  const btn = document.getElementById('btn-edit-mode');
+  if (!root || !btn) {
+    console.error('[alset-editor] preview o btn-edit-mode faltan');
+    return;
+  }
+
+  // captura en fase capture para ganar a botones
+  root.addEventListener('click', (e) => {
+    if (!editMode) return;
+    const el = e.target.closest('[data-alset-edit="1"]');
+    if (!el || !root.contains(el)) return;
+    e.preventDefault();
+    e.stopPropagation();
+    selectPreviewEl(el);
+  }, true);
+
+  root.addEventListener('dblclick', (e) => {
+    if (!editMode) return;
+    const el = e.target.closest('[data-alset-edit="1"]');
+    if (!el || !root.contains(el)) return;
+    e.preventDefault();
+    e.stopPropagation();
+    selectPreviewEl(el);
+    el.contentEditable = 'true';
+    el.focus();
+    const finish = () => {
+      el.contentEditable = 'false';
+      el.removeEventListener('blur', finish);
+      const t = (el.innerText || '').trim();
+      const ti = document.getElementById('insp-text');
+      if (ti) ti.value = t;
+      setStatus('Texto editado en preview', true);
+    };
+    el.addEventListener('blur', finish);
+  }, true);
+
+  btn.addEventListener('click', () => {
+    editMode = !editMode;
+    root.classList.toggle('edit-mode', editMode);
+    btn.setAttribute('aria-pressed', editMode ? 'true' : 'false');
+    btn.textContent = editMode ? '✏️ Modo edición ON' : '✏️ Editar componentes';
+    const hint = document.getElementById('edit-hint');
+    if (hint) {
+      hint.textContent = editMode
+        ? 'Clic = seleccionar · Doble clic = editar texto · Inspector abajo'
+        : 'Activa para seleccionar y cambiar texto/estilo en el preview';
+    }
+    if (editMode) markEditable(root);
+    else selectPreviewEl(null);
+    setStatus(editMode ? 'Modo edición activo' : 'Modo edición off', true);
+  });
+
+  document.getElementById('insp-apply')?.addEventListener('click', applyInspector);
+  document.getElementById('insp-to-code')?.addEventListener('click', syncSelectionToCode);
+  console.log('[alset-editor] edición de preview lista');
+}
+
+/* —— boot único —— */
 buildToolbox();
 buildExamples();
 
@@ -365,7 +683,6 @@ if (window.CodeMirror) {
   }
   refreshCm();
   window.addEventListener('resize', refreshCm);
-  // Cuando el panel se redimensiona
   const ro = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(refreshCm) : null;
   if (ro && $('code-body')) ro.observe($('code-body'));
   cm.getWrapperElement().addEventListener('dragover', (e) => e.preventDefault());
@@ -374,7 +691,6 @@ if (window.CodeMirror) {
     const sn = e.dataTransfer.getData('text/alset-snippet') || e.dataTransfer.getData('text/plain');
     if (sn) insertSnippet(sn);
   });
-  // Asegurar que el textarea nativo también sea editable si CM falla
   const ta = $('code');
   if (ta) { ta.readOnly = false; ta.disabled = false; }
 } else {
@@ -382,242 +698,10 @@ if (window.CodeMirror) {
   if (ta) { ta.style.display = 'block'; ta.readOnly = false; }
 }
 
-/* —— Paneles flotantes: arrastrar y redimensionar —— */
-function enableFloatingPanels() {
-  const ws = $('workspace');
-  document.querySelectorAll('.float-panel').forEach((panel) => {
-    const head = panel.querySelector('[data-drag]');
-    const handle = panel.querySelector('[data-resize]');
-    if (head) {
-      head.addEventListener('pointerdown', (e) => {
-        if (e.target.closest('[data-close]')) return;
-        e.preventDefault();
-        const rect = panel.getBoundingClientRect();
-        const wsRect = ws.getBoundingClientRect();
-        const ox = e.clientX - rect.left;
-        const oy = e.clientY - rect.top;
-        panel.classList.add('dragging');
-        panel.style.right = 'auto';
-        panel.style.bottom = 'auto';
-        const onMove = (ev) => {
-          let left = ev.clientX - wsRect.left - ox;
-          let top = ev.clientY - wsRect.top - oy;
-          left = Math.max(0, Math.min(left, wsRect.width - 80));
-          top = Math.max(0, Math.min(top, wsRect.height - 40));
-          panel.style.left = left + 'px';
-          panel.style.top = top + 'px';
-        };
-        const onUp = () => {
-          panel.classList.remove('dragging');
-          window.removeEventListener('pointermove', onMove);
-          window.removeEventListener('pointerup', onUp);
-          saveLayout();
-        };
-        window.addEventListener('pointermove', onMove);
-        window.addEventListener('pointerup', onUp);
-      });
-    }
-    if (handle) {
-      handle.addEventListener('pointerdown', (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        const startX = e.clientX;
-        const startY = e.clientY;
-        const startW = panel.offsetWidth;
-        const startH = panel.offsetHeight;
-        const onMove = (ev) => {
-          panel.style.width = Math.max(180, startW + (ev.clientX - startX)) + 'px';
-          panel.style.height = Math.max(120, startH + (ev.clientY - startY)) + 'px';
-          if (panel.id === 'panel-right' && cm) {
-            try {
-              const body = $('code-body');
-              cm.setSize('100%', Math.max(160, (body?.clientHeight || 200) - 36));
-              cm.refresh();
-            } catch (_) {}
-          }
-        };
-        const onUp = () => {
-          window.removeEventListener('pointermove', onMove);
-          window.removeEventListener('pointerup', onUp);
-          saveLayout();
-        };
-        window.addEventListener('pointermove', onMove);
-        window.addEventListener('pointerup', onUp);
-      });
-    }
-  });
-  document.querySelectorAll('[data-close]').forEach((btn) => {
-    btn.addEventListener('click', () => {
-      const id = btn.getAttribute('data-close');
-      const panel = document.querySelector('.float-panel[data-panel="' + id + '"]');
-      if (panel) panel.classList.add('hidden-panel');
-      document.body.classList.remove('panels-' + id);
-      document.querySelectorAll('.ptog[data-panel="' + id + '"]').forEach((b) => b.classList.remove('active'));
-    });
-  });
-}
+document.querySelectorAll('.dev').forEach((b) => {
+  b.onclick = () => setDevice(b.getAttribute('data-d'));
+});
 
-function saveLayout() {
-  try {
-    const layout = {};
-    document.querySelectorAll('.float-panel').forEach((p) => {
-      layout[p.id] = {
-        left: p.style.left, top: p.style.top, width: p.style.width, height: p.style.height,
-        right: p.style.right, hidden: p.classList.contains('hidden-panel'),
-      };
-    });
-    localStorage.setItem('alset-js-editor-layout', JSON.stringify(layout));
-  } catch (_) {}
-}
-
-function loadLayout() {
-  try {
-    const raw = localStorage.getItem('alset-js-editor-layout');
-    if (!raw) return;
-    const layout = JSON.parse(raw);
-    Object.keys(layout).forEach((id) => {
-      const p = document.getElementById(id);
-      const L = layout[id];
-      if (!p || !L) return;
-      if (L.left) p.style.left = L.left;
-      if (L.top) p.style.top = L.top;
-      if (L.width) p.style.width = L.width;
-      if (L.height) p.style.height = L.height;
-      if (L.right) p.style.right = L.right;
-      p.classList.toggle('hidden-panel', !!L.hidden);
-    });
-  } catch (_) {}
-}
-
-function resetLayout() {
-  localStorage.removeItem('alset-js-editor-layout');
-  location.reload();
-}
-
-/* —— Preview: seleccionar y editar componentes —— */
-let editMode = false;
-let selectedEl = null;
-
-function markEditable(root) {
-  if (!root) return;
-  root.querySelectorAll('span, button, p, h1, h2, h3, label, a').forEach((el) => {
-    if (el.closest('.inspector')) return;
-    el.classList.add('alset-editable');
-    el.dataset.alsetEdit = '1';
-  });
-  // también divs con texto directo corto
-  root.querySelectorAll('div').forEach((el) => {
-    if (el.children.length === 0 && (el.textContent || '').trim().length > 0 && (el.textContent || '').length < 200) {
-      el.classList.add('alset-editable');
-      el.dataset.alsetEdit = '1';
-    }
-  });
-}
-
-function selectPreviewEl(el) {
-  if (selectedEl) selectedEl.classList.remove('selected');
-  selectedEl = el;
-  if (!el) {
-    $('inspector')?.classList.add('hidden');
-    return;
-  }
-  el.classList.add('selected');
-  const insp = $('inspector');
-  insp.classList.remove('hidden');
-  const text = (el.innerText || el.textContent || '').trim();
-  $('insp-text').value = text;
-  const cs = getComputedStyle(el);
-  const color = cs.color;
-  // rgb to hex approx
-  const m = color.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/);
-  if (m) {
-    const hex = '#' + [m[1], m[2], m[3]].map((x) => Number(x).toString(16).padStart(2, '0')).join('');
-    $('insp-color').value = hex;
-  }
-  const fs = parseInt(cs.fontSize, 10);
-  if (fs) $('insp-size').value = fs;
-}
-
-function applyInspector() {
-  if (!selectedEl) return;
-  const text = $('insp-text').value;
-  const color = $('insp-color').value;
-  const size = $('insp-size').value;
-  if (selectedEl.tagName === 'INPUT') {
-    selectedEl.value = text;
-  } else {
-    selectedEl.textContent = text;
-  }
-  if (color) selectedEl.style.color = color;
-  if (size) selectedEl.style.fontSize = size + 'px';
-  setStatus('Preview actualizado (en vivo)', true);
-}
-
-function syncSelectionToCode() {
-  if (!selectedEl) return;
-  const text = $('insp-text').value;
-  const code = getCode();
-  // Reemplazo simple de la primera cadena que coincida con el texto anterior del nodo
-  const prev = selectedEl.getAttribute('data-prev-text') || '';
-  let next = code;
-  if (prev && code.includes(JSON.stringify(prev))) {
-    next = code.replace(JSON.stringify(prev), JSON.stringify(text));
-  } else if (prev && code.includes("'" + prev.replace(/'/g, "\\'") + "'")) {
-    next = code.replace("'" + prev.replace(/'/g, "\\'") + "'", "'" + text.replace(/'/g, "\\'") + "'");
-  } else {
-    // intenta Text("...") o Button("...")
-    const re = /(Text|Button)\(\s*(["'])([^"']*)\2/;
-    // no global replace all — user can edit code manually
-    setStatus('No se encontró el literal exacto en el código; aplica el cambio a mano o re-ejecuta', false);
-    return;
-  }
-  setCode(next);
-  setStatus('Texto sincronizado al código', true);
-}
-
-function wirePreviewEdit() {
-  const root = $('preview');
-  root.addEventListener('click', (e) => {
-    if (!editMode) return;
-    const el = e.target.closest('.alset-editable');
-    if (!el || !root.contains(el)) return;
-    e.preventDefault();
-    e.stopPropagation();
-    el.setAttribute('data-prev-text', (el.innerText || '').trim());
-    selectPreviewEl(el);
-  });
-  // doble clic → contenteditable
-  root.addEventListener('dblclick', (e) => {
-    if (!editMode) return;
-    const el = e.target.closest('.alset-editable');
-    if (!el) return;
-    e.preventDefault();
-    el.contentEditable = 'true';
-    el.focus();
-    const done = () => {
-      el.contentEditable = 'false';
-      el.removeEventListener('blur', done);
-      if ($('insp-text')) $('insp-text').value = (el.innerText || '').trim();
-      setStatus('Texto editado en preview', true);
-    };
-    el.addEventListener('blur', done);
-  });
-  $('btn-edit-mode')?.addEventListener('click', () => {
-    editMode = !editMode;
-    root.classList.toggle('edit-mode', editMode);
-    $('btn-edit-mode').setAttribute('aria-pressed', editMode ? 'true' : 'false');
-    $('btn-edit-mode').textContent = editMode ? 'Modo edición ON' : 'Editar componentes';
-    $('edit-hint').textContent = editMode
-      ? 'Clic = seleccionar · Doble clic = editar texto · Usa el inspector abajo'
-      : 'Activa para seleccionar y cambiar texto/estilo en el preview';
-    if (!editMode) selectPreviewEl(null);
-  });
-  $('insp-apply')?.addEventListener('click', applyInspector);
-  $('insp-to-code')?.addEventListener('click', syncSelectionToCode);
-}
-
-
-document.querySelectorAll('.dev').forEach((b) => { b.onclick = () => setDevice(b.getAttribute('data-d')); });
 document.querySelectorAll('.ptog').forEach((b) => {
   b.onclick = () => {
     const p = b.getAttribute('data-panel');
@@ -627,14 +711,18 @@ document.querySelectorAll('.ptog').forEach((b) => {
     panel.classList.toggle('hidden-panel', hide);
     document.body.classList.toggle('panels-' + p, !hide);
     b.classList.toggle('active', !hide);
-    if (!hide && p === 'right' && cm) setTimeout(() => { cm.refresh(); }, 50);
+    if (!hide && p === 'right' && cm) setTimeout(() => { try { cm.refresh(); } catch (_) {} }, 50);
   };
 });
-$('btn-reset-layout')?.addEventListener('click', resetLayout);
+
+document.getElementById('btn-reset-layout')?.addEventListener('click', () => {
+  try { localStorage.removeItem('alset-js-editor-layout'); } catch (_) {}
+  location.reload();
+});
+
 enableFloatingPanels();
 loadLayout();
 wirePreviewEdit();
-
 
 $('btn-run').onclick = run;
 $('btn-deploy').onclick = deploy;
@@ -648,19 +736,21 @@ $('btn-apply-sketch').onclick = () => {
   run();
 };
 
-const host = $('preview-host');
-host.addEventListener('dragover', (e) => { e.preventDefault(); host.classList.add('drag-over'); });
-host.addEventListener('dragleave', () => host.classList.remove('drag-over'));
-host.addEventListener('drop', (e) => {
-  e.preventDefault();
-  host.classList.remove('drag-over');
-  const sn = e.dataTransfer.getData('text/alset-snippet') || e.dataTransfer.getData('text/plain');
-  if (sn) {
-    if (sn.includes('function App')) setCode(sn);
-    else insertSnippet(sn);
-    run();
-  }
-});
+const hostDrop = $('preview-host');
+if (hostDrop) {
+  hostDrop.addEventListener('dragover', (e) => { e.preventDefault(); hostDrop.classList.add('drag-over'); });
+  hostDrop.addEventListener('dragleave', () => hostDrop.classList.remove('drag-over'));
+  hostDrop.addEventListener('drop', (e) => {
+    e.preventDefault();
+    hostDrop.classList.remove('drag-over');
+    const sn = e.dataTransfer.getData('text/alset-snippet') || e.dataTransfer.getData('text/plain');
+    if (sn) {
+      if (sn.includes('function App')) setCode(sn);
+      else insertSnippet(sn);
+      run();
+    }
+  });
+}
 
 $('btn-mind').onclick = async () => {
   try {
@@ -672,7 +762,7 @@ $('btn-mind').onclick = async () => {
     const j = await r.json();
     $('mind-out').textContent = j.voice || JSON.stringify(j, null, 2);
   } catch (e) {
-    $('mind-out').textContent = 'API Mind no disponible aquí. Despliega junto a PrismaTec o mini-nodo.\n' + e.message;
+    $('mind-out').textContent = 'API Mind no disponible aquí.\n' + e.message;
   }
 };
 $('btn-zyrion').onclick = async () => {
@@ -685,10 +775,9 @@ $('btn-zyrion').onclick = async () => {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ entradas: { a, b } }),
     });
-    const j = await r.json();
-    $('zyrion-out').textContent = JSON.stringify(j, null, 2);
+    $('zyrion-out').textContent = JSON.stringify(await r.json(), null, 2);
   } catch {
-    $('zyrion-out').textContent = 'Zyrion local (min conf): ' + local + '\n(a=' + a + ', b=' + b + ')';
+    $('zyrion-out').textContent = 'Zyrion local (min conf): ' + local;
   }
 };
 
@@ -705,14 +794,13 @@ $('btn-assert').onclick = () => {
 };
 $('btn-infer').onclick = () => {
   const r = inferLocal();
-  $('syl-out').textContent = JSON.stringify(r, null, 2) + '\n\n' + sylFacts.map((f) => `${f.s}—${f.r}→${f.o}[${f.c}]`).join('\n');
+  $('syl-out').textContent = JSON.stringify(r, null, 2);
 };
 $('btn-ask').onclick = () => {
   const r = inferLocal();
   $('syl-out').textContent = 'ask → ' + r.conclusion + ' = ' + r.conf;
 };
 
-// import Studio
 try {
   const params = new URLSearchParams(location.search);
   if (params.get('from') === 'studio') {
@@ -721,7 +809,6 @@ try {
     if (code) {
       setCode(code);
       if (n) $('app-name').value = n;
-      setStatus('Importado desde Studio', true);
     }
   }
 } catch (_) {}
@@ -729,3 +816,4 @@ try {
 if (!getCode()) setCode(EXAMPLE_APPS[0].code);
 setDevice('mobile');
 paintSyl();
+console.log('[alset-editor] listo — paneles movibles + edición preview');
