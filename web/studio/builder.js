@@ -815,8 +815,23 @@ export function bootBuilder() {
       log('rootcid=' + (j.rootcid || '—'));
       $('status').textContent = 'deployed';
       $('status').className = 'badge ok';
-      const win = window.open(openUrl, '_blank', 'noopener,noreferrer');
-      if (!win) log('El navegador bloqueó la pestaña: abre manualmente ' + openUrl);
+      // Si estamos dentro del Desktop (iframe), notificar al SO y no forzar pestaña
+      const appName = $('app-name').value || j.name || 'app';
+      if (window.parent && window.parent !== window) {
+        try {
+          window.parent.postMessage({
+            type: 'alset-desktop-deploy',
+            name: j.name || appName,
+            title: j.title || appName,
+            url: j.url || ('/apps/' + encodeURIComponent(appName) + '/'),
+            rootcid: j.rootcid || null,
+          }, '*');
+          log('deploy → escritorio Alset (icono + ventana)');
+        } catch (_) {}
+      } else {
+        const win = window.open(openUrl, '_blank', 'noopener,noreferrer');
+        if (!win) log('El navegador bloqueó la pestaña: abre manualmente ' + openUrl);
+      }
     } catch (e) {
       reportError(e, 'deploy');
     }
