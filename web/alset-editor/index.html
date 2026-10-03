@@ -26,6 +26,7 @@
       <button type="button" class="ptog active" data-panel="agent">Mind·Zyrion</button>
     </div>
     <span class="spacer"></span>
+    <button type="button" class="btn ghost" id="btn-reset-layout" title="Reposar posiciones de paneles">Layout</button>
     <button type="button" class="btn ghost" id="btn-examples">Ejemplos</button>
     <button type="button" class="btn ghost" id="btn-sketch">Bosquejo</button>
     <button type="button" class="btn ghost" id="btn-run">Ejecutar</button>
@@ -33,65 +34,110 @@
     <a class="btn ghost" href="/">Studio</a>
   </header>
 
-  <div class="workspace">
-    <aside class="toolbox" id="panel-left">
-      <h3>Arrastrar → código / preview</h3>
-      <div id="toolbox" class="tool-list"></div>
-      <h3>Plantillas con lógica</h3>
-      <div id="templates" class="tool-list"></div>
-      <h3>Iconos nativos</h3>
-      <div id="icons" class="icons"></div>
-    </aside>
-
-    <section class="code-col" id="panel-right">
-      <div class="label">Código Alset-JS <span class="hint">resaltado · indentación</span></div>
-      <textarea id="code"></textarea>
-      <div class="status-bar">
-        <span id="status">Listo</span>
-        <span id="hint">function App() · suelta componentes aquí o en el preview</span>
+  <div class="workspace" id="workspace">
+    <!-- Toolbox -->
+    <div class="float-panel" id="panel-left" data-panel="left" style="left:8px;top:8px;width:220px;height:calc(100% - 16px);">
+      <div class="panel-head" data-drag>
+        <strong>Toolbox</strong>
+        <button type="button" class="ph-btn" data-close="left" title="Ocultar">✕</button>
       </div>
-    </section>
+      <div class="panel-body toolbox">
+        <h3>Arrastrar → código / preview</h3>
+        <div id="toolbox" class="tool-list"></div>
+        <h3>Plantillas con lógica</h3>
+        <div id="templates" class="tool-list"></div>
+        <h3>Iconos nativos</h3>
+        <div id="icons" class="icons"></div>
+      </div>
+      <div class="resize-handle" data-resize></div>
+    </div>
 
-    <section class="preview-col" id="panel-preview">
-      <div class="label">Preview · <span id="dev-label">Móvil 390×720</span></div>
-      <div id="preview-host" class="preview-host">
-        <div id="device-frame" class="device-frame mobile">
-          <div id="preview" class="preview-root"></div>
+    <!-- Code -->
+    <div class="float-panel" id="panel-right" data-panel="right" style="left:240px;top:8px;width:42%;height:calc(100% - 16px);">
+      <div class="panel-head" data-drag>
+        <strong>Código Alset-JS (editable)</strong>
+        <button type="button" class="ph-btn" data-close="right" title="Ocultar">✕</button>
+      </div>
+      <div class="panel-body" id="code-body">
+        <textarea id="code" spellcheck="false"></textarea>
+        <div class="status-bar">
+          <span id="status">Listo · Ctrl+Enter ejecuta</span>
+          <span id="hint">Edita libremente · suelta componentes aquí</span>
         </div>
       </div>
-      <div class="label">Estados vivos</div>
-      <pre id="states-out" class="states-out">—</pre>
-    </section>
+      <div class="resize-handle" data-resize></div>
+    </div>
 
-    <aside class="agent-col" id="panel-agent">
-      <div class="label">Mind · latido</div>
-      <textarea id="mind-in" rows="2" placeholder="hola · quién eres"></textarea>
-      <button type="button" class="btn gold block" id="btn-mind">Enviar latido</button>
-      <pre id="mind-out" class="logic-out">Respuesta Mind…</pre>
-      <div class="label">Zyrion</div>
-      <div class="zyr-row">
-        <label>a <input id="zyr-a" type="number" step="0.1" value="0.2" /></label>
-        <label>b <input id="zyr-b" type="number" step="0.1" value="0.8" /></label>
+    <!-- Preview -->
+    <div class="float-panel" id="panel-preview" data-panel="preview" style="right:256px;top:8px;width:36%;height:calc(100% - 16px);">
+      <div class="panel-head" data-drag>
+        <strong>Preview · <span id="dev-label">Móvil</span></strong>
+        <button type="button" class="ph-btn" data-close="preview" title="Ocultar">✕</button>
       </div>
-      <button type="button" class="btn gold block" id="btn-zyrion">Evaluar</button>
-      <pre id="zyrion-out" class="logic-out">—</pre>
-      <div class="label">Silogismos (local + API)</div>
-      <textarea id="syl-in" rows="3" placeholder='{"s":"organismo","r":"tiene_capacidad","o":"backup","c":2}'></textarea>
-      <div class="zyr-row">
-        <button type="button" class="btn ghost" id="btn-assert">Assert</button>
-        <button type="button" class="btn ghost" id="btn-infer">Infer</button>
-        <button type="button" class="btn ghost" id="btn-ask">Ask</button>
+      <div class="edit-mode-bar">
+        <button type="button" class="btn gold" id="btn-edit-mode" aria-pressed="false">Editar componentes</button>
+        <span id="edit-hint">Activa para seleccionar y cambiar texto/estilo en el preview</span>
       </div>
-      <pre id="syl-out" class="logic-out">Hechos locales del editor…</pre>
-      <div class="label">Neuronal (alsetNeuralState)</div>
-      <pre id="neural-out" class="logic-out">Claves neuronales en sesión…</pre>
-    </aside>
+      <div class="panel-body">
+        <div id="preview-host" class="preview-host">
+          <div id="device-frame" class="device-frame mobile">
+            <div id="preview" class="preview-root"></div>
+          </div>
+        </div>
+        <div id="inspector" class="inspector hidden">
+          <label>Texto</label>
+          <input id="insp-text" type="text" />
+          <label>Color</label>
+          <input id="insp-color" type="color" value="#f4b400" />
+          <label>Tamaño fuente (px)</label>
+          <input id="insp-size" type="number" min="8" max="72" value="14" />
+          <div class="insp-row">
+            <button type="button" class="btn gold" id="insp-apply">Aplicar</button>
+            <button type="button" class="btn ghost" id="insp-to-code">Sincronizar → código</button>
+          </div>
+        </div>
+        <pre id="states-out" class="states-out">—</pre>
+      </div>
+      <div class="resize-handle" data-resize></div>
+    </div>
+
+    <!-- Agent -->
+    <div class="float-panel" id="panel-agent" data-panel="agent" style="right:8px;top:8px;width:240px;height:calc(100% - 16px);">
+      <div class="panel-head" data-drag>
+        <strong>Mind · Zyrion</strong>
+        <button type="button" class="ph-btn" data-close="agent" title="Ocultar">✕</button>
+      </div>
+      <div class="panel-body agent-col">
+        <div class="label">Mind · latido</div>
+        <textarea id="mind-in" rows="2" placeholder="hola · quién eres"></textarea>
+        <button type="button" class="btn gold block" id="btn-mind">Enviar latido</button>
+        <pre id="mind-out" class="logic-out">Respuesta Mind…</pre>
+        <div class="label">Zyrion</div>
+        <div class="zyr-row">
+          <label>a <input id="zyr-a" type="number" step="0.1" value="0.2" /></label>
+          <label>b <input id="zyr-b" type="number" step="0.1" value="0.8" /></label>
+        </div>
+        <button type="button" class="btn gold block" id="btn-zyrion">Evaluar</button>
+        <pre id="zyrion-out" class="logic-out">—</pre>
+        <div class="label">Silogismos</div>
+        <textarea id="syl-in" rows="3" placeholder='{"s":"organismo","r":"tiene_capacidad","o":"backup","c":2}'></textarea>
+        <div class="zyr-row">
+          <button type="button" class="btn ghost" id="btn-assert">Assert</button>
+          <button type="button" class="btn ghost" id="btn-infer">Infer</button>
+          <button type="button" class="btn ghost" id="btn-ask">Ask</button>
+        </div>
+        <pre id="syl-out" class="logic-out">Hechos locales…</pre>
+        <div class="label">Neuronal</div>
+        <pre id="neural-out" class="logic-out">—</pre>
+      </div>
+      <div class="resize-handle" data-resize></div>
+    </div>
   </div>
 
   <aside id="examples-drawer" class="drawer" hidden>
     <div class="drawer-panel">
       <header>
-        <strong>Ejemplos (Studio + Alset-JS-Runtime)</strong>
+        <strong>Ejemplos</strong>
         <button type="button" class="btn ghost" id="btn-close-ex">Cerrar</button>
       </header>
       <div id="examples-list"></div>
@@ -110,9 +156,7 @@ boton: Guardar
 input: nombre
 fila: A | B | C
 mapa
-card: Producto
-drawer
-tabs</pre>
+card: Producto</pre>
       <textarea id="sketch-src"></textarea>
       <button type="button" class="btn gold block" id="btn-apply-sketch">Generar</button>
     </div>

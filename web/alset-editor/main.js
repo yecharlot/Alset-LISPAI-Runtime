@@ -247,6 +247,8 @@ function run() {
       AudioNode, VideoNode, trackedNeural, host, Core
     );
     setStatus('Ejecutado · ' + deviceId, true);
+    markEditable(preview);
+    if (editMode) preview.classList.add('edit-mode');
   } catch (e) {
     const err = document.createElement('pre');
     err.style.cssText = 'color:#ff8a80;padding:12px;white-space:pre-wrap;font-size:12px';
@@ -256,6 +258,7 @@ function run() {
     console.error(e);
   }
   paintStates();
+  selectPreviewEl(null);
 }
 
 async function deploy() {
@@ -348,25 +351,290 @@ if (window.CodeMirror) {
     indentUnit: 2,
     tabSize: 2,
     lineWrapping: true,
+    readOnly: false,
+    autofocus: false,
     extraKeys: { 'Ctrl-Enter': () => run(), 'Cmd-Enter': () => run() },
   });
-  cm.setSize('100%', '100%');
+  function refreshCm() {
+    try {
+      const body = $('code-body');
+      const h = body ? Math.max(160, body.clientHeight - 36) : 400;
+      cm.setSize('100%', h);
+      cm.refresh();
+    } catch (_) {}
+  }
+  refreshCm();
+  window.addEventListener('resize', refreshCm);
+  // Cuando el panel se redimensiona
+  const ro = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(refreshCm) : null;
+  if (ro && $('code-body')) ro.observe($('code-body'));
   cm.getWrapperElement().addEventListener('dragover', (e) => e.preventDefault());
   cm.getWrapperElement().addEventListener('drop', (e) => {
     e.preventDefault();
     const sn = e.dataTransfer.getData('text/alset-snippet') || e.dataTransfer.getData('text/plain');
     if (sn) insertSnippet(sn);
   });
+  // Asegurar que el textarea nativo también sea editable si CM falla
+  const ta = $('code');
+  if (ta) { ta.readOnly = false; ta.disabled = false; }
+} else {
+  const ta = $('code');
+  if (ta) { ta.style.display = 'block'; ta.readOnly = false; }
 }
+
+/* —— Paneles flotantes: arrastrar y redimensionar —— */
+function enableFloatingPanels() {
+  const ws = $('workspace');
+  document.querySelectorAll('.float-panel').forEach((panel) => {
+    const head = panel.querySelector('[data-drag]');
+    const handle = panel.querySelector('[data-resize]');
+    if (head) {
+      head.addEventListener('pointerdown', (e) => {
+        if (e.target.closest('[data-close]')) return;
+        e.preventDefault();
+        const rect = panel.getBoundingClientRect();
+        const wsRect = ws.getBoundingClientRect();
+        const ox = e.clientX - rect.left;
+        const oy = e.clientY - rect.top;
+        panel.classList.add('dragging');
+        panel.style.right = 'auto';
+        panel.style.bottom = 'auto';
+        const onMove = (ev) => {
+          let left = ev.clientX - wsRect.left - ox;
+          let top = ev.clientY - wsRect.top - oy;
+          left = Math.max(0, Math.min(left, wsRect.width - 80));
+          top = Math.max(0, Math.min(top, wsRect.height - 40));
+          panel.style.left = left + 'px';
+          panel.style.top = top + 'px';
+        };
+        const onUp = () => {
+          panel.classList.remove('dragging');
+          window.removeEventListener('pointermove', onMove);
+          window.removeEventListener('pointerup', onUp);
+          saveLayout();
+        };
+        window.addEventListener('pointermove', onMove);
+        window.addEventListener('pointerup', onUp);
+      });
+    }
+    if (handle) {
+      handle.addEventListener('pointerdown', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        const startX = e.clientX;
+        const startY = e.clientY;
+        const startW = panel.offsetWidth;
+        const startH = panel.offsetHeight;
+        const onMove = (ev) => {
+          panel.style.width = Math.max(180, startW + (ev.clientX - startX)) + 'px';
+          panel.style.height = Math.max(120, startH + (ev.clientY - startY)) + 'px';
+          if (panel.id === 'panel-right' && cm) {
+            try {
+              const body = $('code-body');
+              cm.setSize('100%', Math.max(160, (body?.clientHeight || 200) - 36));
+              cm.refresh();
+            } catch (_) {}
+          }
+        };
+        const onUp = () => {
+          window.removeEventListener('pointermove', onMove);
+          window.removeEventListener('pointerup', onUp);
+          saveLayout();
+        };
+        window.addEventListener('pointermove', onMove);
+        window.addEventListener('pointerup', onUp);
+      });
+    }
+  });
+  document.querySelectorAll('[data-close]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const id = btn.getAttribute('data-close');
+      const panel = document.querySelector('.float-panel[data-panel="' + id + '"]');
+      if (panel) panel.classList.add('hidden-panel');
+      document.body.classList.remove('panels-' + id);
+      document.querySelectorAll('.ptog[data-panel="' + id + '"]').forEach((b) => b.classList.remove('active'));
+    });
+  });
+}
+
+function saveLayout() {
+  try {
+    const layout = {};
+    document.querySelectorAll('.float-panel').forEach((p) => {
+      layout[p.id] = {
+        left: p.style.left, top: p.style.top, width: p.style.width, height: p.style.height,
+        right: p.style.right, hidden: p.classList.contains('hidden-panel'),
+      };
+    });
+    localStorage.setItem('alset-js-editor-layout', JSON.stringify(layout));
+  } catch (_) {}
+}
+
+function loadLayout() {
+  try {
+    const raw = localStorage.getItem('alset-js-editor-layout');
+    if (!raw) return;
+    const layout = JSON.parse(raw);
+    Object.keys(layout).forEach((id) => {
+      const p = document.getElementById(id);
+      const L = layout[id];
+      if (!p || !L) return;
+      if (L.left) p.style.left = L.left;
+      if (L.top) p.style.top = L.top;
+      if (L.width) p.style.width = L.width;
+      if (L.height) p.style.height = L.height;
+      if (L.right) p.style.right = L.right;
+      p.classList.toggle('hidden-panel', !!L.hidden);
+    });
+  } catch (_) {}
+}
+
+function resetLayout() {
+  localStorage.removeItem('alset-js-editor-layout');
+  location.reload();
+}
+
+/* —— Preview: seleccionar y editar componentes —— */
+let editMode = false;
+let selectedEl = null;
+
+function markEditable(root) {
+  if (!root) return;
+  root.querySelectorAll('span, button, p, h1, h2, h3, label, a').forEach((el) => {
+    if (el.closest('.inspector')) return;
+    el.classList.add('alset-editable');
+    el.dataset.alsetEdit = '1';
+  });
+  // también divs con texto directo corto
+  root.querySelectorAll('div').forEach((el) => {
+    if (el.children.length === 0 && (el.textContent || '').trim().length > 0 && (el.textContent || '').length < 200) {
+      el.classList.add('alset-editable');
+      el.dataset.alsetEdit = '1';
+    }
+  });
+}
+
+function selectPreviewEl(el) {
+  if (selectedEl) selectedEl.classList.remove('selected');
+  selectedEl = el;
+  if (!el) {
+    $('inspector')?.classList.add('hidden');
+    return;
+  }
+  el.classList.add('selected');
+  const insp = $('inspector');
+  insp.classList.remove('hidden');
+  const text = (el.innerText || el.textContent || '').trim();
+  $('insp-text').value = text;
+  const cs = getComputedStyle(el);
+  const color = cs.color;
+  // rgb to hex approx
+  const m = color.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/);
+  if (m) {
+    const hex = '#' + [m[1], m[2], m[3]].map((x) => Number(x).toString(16).padStart(2, '0')).join('');
+    $('insp-color').value = hex;
+  }
+  const fs = parseInt(cs.fontSize, 10);
+  if (fs) $('insp-size').value = fs;
+}
+
+function applyInspector() {
+  if (!selectedEl) return;
+  const text = $('insp-text').value;
+  const color = $('insp-color').value;
+  const size = $('insp-size').value;
+  if (selectedEl.tagName === 'INPUT') {
+    selectedEl.value = text;
+  } else {
+    selectedEl.textContent = text;
+  }
+  if (color) selectedEl.style.color = color;
+  if (size) selectedEl.style.fontSize = size + 'px';
+  setStatus('Preview actualizado (en vivo)', true);
+}
+
+function syncSelectionToCode() {
+  if (!selectedEl) return;
+  const text = $('insp-text').value;
+  const code = getCode();
+  // Reemplazo simple de la primera cadena que coincida con el texto anterior del nodo
+  const prev = selectedEl.getAttribute('data-prev-text') || '';
+  let next = code;
+  if (prev && code.includes(JSON.stringify(prev))) {
+    next = code.replace(JSON.stringify(prev), JSON.stringify(text));
+  } else if (prev && code.includes("'" + prev.replace(/'/g, "\\'") + "'")) {
+    next = code.replace("'" + prev.replace(/'/g, "\\'") + "'", "'" + text.replace(/'/g, "\\'") + "'");
+  } else {
+    // intenta Text("...") o Button("...")
+    const re = /(Text|Button)\(\s*(["'])([^"']*)\2/;
+    // no global replace all — user can edit code manually
+    setStatus('No se encontró el literal exacto en el código; aplica el cambio a mano o re-ejecuta', false);
+    return;
+  }
+  setCode(next);
+  setStatus('Texto sincronizado al código', true);
+}
+
+function wirePreviewEdit() {
+  const root = $('preview');
+  root.addEventListener('click', (e) => {
+    if (!editMode) return;
+    const el = e.target.closest('.alset-editable');
+    if (!el || !root.contains(el)) return;
+    e.preventDefault();
+    e.stopPropagation();
+    el.setAttribute('data-prev-text', (el.innerText || '').trim());
+    selectPreviewEl(el);
+  });
+  // doble clic → contenteditable
+  root.addEventListener('dblclick', (e) => {
+    if (!editMode) return;
+    const el = e.target.closest('.alset-editable');
+    if (!el) return;
+    e.preventDefault();
+    el.contentEditable = 'true';
+    el.focus();
+    const done = () => {
+      el.contentEditable = 'false';
+      el.removeEventListener('blur', done);
+      if ($('insp-text')) $('insp-text').value = (el.innerText || '').trim();
+      setStatus('Texto editado en preview', true);
+    };
+    el.addEventListener('blur', done);
+  });
+  $('btn-edit-mode')?.addEventListener('click', () => {
+    editMode = !editMode;
+    root.classList.toggle('edit-mode', editMode);
+    $('btn-edit-mode').setAttribute('aria-pressed', editMode ? 'true' : 'false');
+    $('btn-edit-mode').textContent = editMode ? 'Modo edición ON' : 'Editar componentes';
+    $('edit-hint').textContent = editMode
+      ? 'Clic = seleccionar · Doble clic = editar texto · Usa el inspector abajo'
+      : 'Activa para seleccionar y cambiar texto/estilo en el preview';
+    if (!editMode) selectPreviewEl(null);
+  });
+  $('insp-apply')?.addEventListener('click', applyInspector);
+  $('insp-to-code')?.addEventListener('click', syncSelectionToCode);
+}
+
 
 document.querySelectorAll('.dev').forEach((b) => { b.onclick = () => setDevice(b.getAttribute('data-d')); });
 document.querySelectorAll('.ptog').forEach((b) => {
   b.onclick = () => {
     const p = b.getAttribute('data-panel');
-    document.body.classList.toggle('panels-' + p);
-    b.classList.toggle('active', document.body.classList.contains('panels-' + p));
+    const panel = document.querySelector('.float-panel[data-panel="' + p + '"]');
+    if (!panel) return;
+    const hide = !panel.classList.contains('hidden-panel');
+    panel.classList.toggle('hidden-panel', hide);
+    document.body.classList.toggle('panels-' + p, !hide);
+    b.classList.toggle('active', !hide);
+    if (!hide && p === 'right' && cm) setTimeout(() => { cm.refresh(); }, 50);
   };
 });
+$('btn-reset-layout')?.addEventListener('click', resetLayout);
+enableFloatingPanels();
+loadLayout();
+wirePreviewEdit();
+
 
 $('btn-run').onclick = run;
 $('btn-deploy').onclick = deploy;
