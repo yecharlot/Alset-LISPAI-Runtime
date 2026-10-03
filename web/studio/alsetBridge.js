@@ -13,11 +13,20 @@ import {
   Input,
   Spacer,
   Animate,
+  Image,
+  Layer,
+  Icon,
+  VideoNode,
+  AudioNode,
+  MapNode,
+  List,
   mod,
   Theme,
   setForcedBreakpoint,
+  ALSET_ICONS,
 } from '../alset/AlsetPulseCore.js';
 import { THEME_COLORS } from './components.js';
+import { paintTree } from './domPaint.js';
 import { guard, withBudget, reportError, StudioError } from './sandbox.js';
 
 /** Shared native alsetState registry — granular subscribers inside Alset core */
@@ -53,6 +62,22 @@ export function stateLoad(obj) {
 export function stateSet(name, value) {
   getAlsetState(name).set(value);
 }
+
+function bindLispGlobals() {
+  if (typeof window === 'undefined') return;
+  window.__alsetStateGet = (k) => {
+    try { return getAlsetState(k).get(); } catch { return undefined; }
+  };
+  window.__alsetStateSet = (k, v) => { getAlsetState(k, v).set(v); };
+  window.__alsetStateDump = () => stateDump();
+  window.AlsetState = {
+    get: (k) => getAlsetState(k).get(),
+    set: (k, v) => getAlsetState(k, v).set(v),
+    dump: () => stateDump(),
+    eval: (src) => evalLispAgainstState(src),
+  };
+}
+bindLispGlobals();
 
 export function clearAlsetStates() {
   registry.clear();
@@ -206,13 +231,26 @@ function renderNode(n, log, depth = 0) {
     }
     case 'list': {
       const st = getAlsetState(p.state || 'items', []);
-      const data = st.get();
-      Column(mod().key(key).gap(4), () => {
+      let data = st.get();
+      if (data && typeof data === 'object' && !Array.isArray(data) && Array.isArray(data.items)) data = data.items;
+      const titleF = p.itemTitle || p.titleField || 'name';
+      const subF = p.itemSubtitle || p.subtitleField || 'description';
+      const metaF = p.itemMeta || p.metaField || '';
+      Column(mod().key(key).gap(6), () => {
         if (!Array.isArray(data) || !data.length) {
           Text(p.empty || 'Sin datos', mod().sizeText(12).color(colorOf('muted')));
         } else {
           data.slice(0, 40).forEach((item, i) => {
-            Text(typeof item === 'string' ? item : JSON.stringify(item), mod().key(key + '-i' + i).sizeText(12));
+            if (item != null && typeof item === 'object') {
+              const title = item[titleF] ?? item.title ?? item.name ?? item.id ?? ('#' + i);
+              Text(String(title), mod().key(key + '-t' + i).sizeText(13).weight('700'));
+              const sub = subF ? (item[subF] ?? '') : '';
+              if (sub !== '' && sub != null) Text(String(sub), mod().key(key + '-s' + i).sizeText(11).color(colorOf('muted')));
+              const meta = metaF ? (item[metaF] ?? '') : '';
+              if (meta !== '' && meta != null) Text(String(meta), mod().key(key + '-m' + i).sizeText(12).color(colorOf('primary')));
+            } else {
+              Text(String(item), mod().key(key + '-i' + i).sizeText(12));
+            }
           });
         }
       });
@@ -316,7 +354,9 @@ function renderNode(n, log, depth = 0) {
       return;
     }
     case 'api': {
-      Text('GET ' + (p.url || '') + ' → ' + (p.state || 'apiData'), mod().key(key).sizeText(11).color(colorOf('secondary')));
+      // connector silencioso — solo efecto sobre state
+      const _apiSilent = true;
+      Text('', mod().key(key).sizeText(0));
       if (p.auto && p.url) {
         // fire once per mount generation
         const flag = '__alset_api_' + (n.id || p.url);
@@ -333,14 +373,12 @@ function renderNode(n, log, depth = 0) {
       return;
     }
     case 'api-post': {
-      Text('POST ' + (p.url || '/v1/data'), mod().key(key).sizeText(11).color(colorOf('secondary')));
+      // conector silencioso
       return;
     }
     case 'state': {
       const st = getAlsetState(p.name || 'x', p.value ?? '');
-      // ensure initial
       if (st.get() === '' || st.get() === undefined) st.set(p.value ?? '');
-      Text(`state ${p.name}=${st.get()}`, mod().key(key).sizeText(11).color(colorOf('secondary')));
       return;
     }
     case 'persist': {
@@ -369,7 +407,11 @@ function renderNode(n, log, depth = 0) {
       return;
     }
     case 'image': {
-      Text(p.src ? `[img ${p.alt || ''}]` : '(imagen)', mod().key(key).sizeText(12).color(colorOf('muted')));
+      if (p.src) {
+        Image(p.src, mod().key(key).height(Number(p.height) || 120).width('100%').radius(8));
+      } else {
+        Text('(imagen sin src)', mod().key(key).sizeText(12).color(colorOf('muted')));
+      }
       return;
     }
     case 'column':
@@ -384,7 +426,18 @@ function renderNode(n, log, depth = 0) {
       const gap = Number(p.gap) || 8;
       const pad = Number(p.pad) || 0;
       if (n.type === 'row') {
-        Row(mod().key(key).gap(gap).padding(pad).addStyle('flexWrap', 'wrap'), kids);
+        const vw = window.__ALSET_VIEWPORT_WIDTH__ || 1100;
+        const forceWrap = p.wrap === true || p.wrap === 'true' || p.wrap === 'wrap' || vw <= 480;
+        const wrap = forceWrap ? 'wrap' : 'nowrap';
+        Row(
+          mod().key(key).gap(gap).padding(pad)
+            .addStyle('flexWrap', wrap)
+            .addStyle('alignItems', 'stretch')
+            .addStyle('flexDirection', 'row')
+            .addStyle('width', '100%')
+            .addStyle('maxWidth', '100%'),
+          kids
+        );
       } else if (n.type === 'card') {
         Card(mod().key(key).padding(pad || 14).gap(gap).background(Theme.current.surface), kids);
       } else if (n.type.startsWith('anim-')) {
@@ -392,6 +445,280 @@ function renderNode(n, log, depth = 0) {
       } else {
         Column(mod().key(key).gap(gap).padding(pad), kids);
       }
+      return;
+    }
+
+    case 'hamburger': {
+      const openSt = getAlsetState(p.state || 'drawerOpen', false);
+      Button(p.icon || '☰', () => openSt.set(!openSt.get()), mod()
+        .key(key)
+        .padding('8px 12px')
+        .radius(8)
+        .background(Theme.current.surface)
+        .addStyle('flexShrink', '0'));
+      return;
+    }
+    case 'drawer':
+    case 'side-menu': {
+      // Contained inside device frame — never position:fixed to the browser viewport
+      const openSt = getAlsetState(p.state || 'drawerOpen', !!p.open);
+      const open = !!openSt.get();
+      const side = p.side === 'right' ? 'right' : 'left';
+      const panelW = Math.min(280, Math.floor((window.__ALSET_VIEWPORT_WIDTH__ || 390) * 0.82));
+      Layer(mod().key(key).position('relative').width('100%').addStyle('minHeight', open ? '120px' : '0'), () => {
+        if (!open) {
+          Text(p.title ? `(menú cerrado · ${p.title})` : '(menú cerrado)', mod().sizeText(11).color(colorOf('muted')));
+          return;
+        }
+        // Scrim
+        Column(
+          mod()
+            .key(key + '-scrim')
+            .position('absolute')
+            .top(0).left(0).right(0).bottom(0)
+            .background('rgba(0,0,0,0.45)')
+            .zIndex(20)
+            .clickable(() => openSt.set(false)),
+          null
+        );
+        // Panel
+        Column(
+          mod()
+            .key(key + '-panel')
+            .position('absolute')
+            .top(0)
+            .addStyle(side, '0')
+            .width(panelW)
+            .height('100%')
+            .background(Theme.current.surface)
+            .padding(14)
+            .gap(8)
+            .zIndex(21)
+            .addStyle('boxShadow', '0 8px 24px rgba(0,0,0,0.35)')
+            .addStyle('maxHeight', '100%')
+            .addStyle('overflow', 'auto'),
+          () => {
+            Row(mod().gap(8).addStyle('alignItems', 'center').addStyle('justifyContent', 'space-between'), () => {
+              Text(p.title || 'Menú', mod().sizeText(15).weight('700'));
+              Button('✕', () => openSt.set(false), mod().padding('4px 10px').background('#2a3344'));
+            });
+            (n.children || []).forEach((c) => renderNode(c, log, depth + 1));
+          }
+        );
+      });
+      return;
+    }
+    case 'tabs-shell': {
+      const tabSt = getAlsetState(p.state || 'tab', 0);
+      const labels = String(p.tabs || 'Inicio,Más').split(',').map((s) => s.trim()).filter(Boolean);
+      let idx = tabSt.get();
+      if (typeof idx === 'string') {
+        const i = labels.indexOf(idx);
+        idx = i >= 0 ? i : 0;
+      }
+      idx = Number(idx) || 0;
+      if (idx < 0 || idx >= labels.length) idx = 0;
+      Column(mod().key(key).gap(10).width('100%').addStyle('maxWidth', '100%'), () => {
+        Row(
+          mod()
+            .gap(4)
+            .addStyle('flexWrap', 'wrap')
+            .addStyle('width', '100%')
+            .addStyle('overflow', 'hidden'),
+          () => {
+            labels.forEach((lab, i) => {
+              Button(lab, () => tabSt.set(i), mod()
+                .padding('8px 12px')
+                .radius(8)
+                .background(i === idx ? Theme.current.primary : Theme.current.surface)
+                .addStyle('flexShrink', '1')
+                .addStyle('maxWidth', '100%'));
+            });
+          }
+        );
+        const kids = n.children || [];
+        if (kids[idx]) {
+          Column(mod().key(key + '-pane-' + idx).gap(8).width('100%').padding(4), () => {
+            renderNode(kids[idx], log, depth + 1);
+          });
+        } else {
+          Text('Sin contenido para esta pestaña', mod().sizeText(12).color(colorOf('muted')));
+        }
+      });
+      return;
+    }
+    case 'splash': {
+      const st = getAlsetState(p.state || 'splash', true);
+      const show = st.get() !== false;
+      if (!show) return;
+      const dur = Number(p.duration) || 1600;
+      if (p.autoHide !== false && !window['__alset_splash_' + key]) {
+        window['__alset_splash_' + key] = true;
+        setTimeout(() => st.set(false), dur);
+      }
+      Column(
+        mod()
+          .key(key)
+          .position('absolute')
+          .top(0).left(0).right(0).bottom(0)
+          .background(Theme.current.background || '#0b0e14')
+          .align('center', 'center')
+          .gap(10)
+          .zIndex(30)
+          .addStyle('minHeight', '200px'),
+        () => {
+          Text(p.title || 'Alset', mod().sizeText(22).weight('800').color(colorOf('primary')));
+          Text(p.subtitle || 'Cargando…', mod().sizeText(13).color(colorOf('muted')));
+        }
+      );
+      return;
+    }
+    case 'icon': {
+      const name = p.name || p.icon || 'home';
+      try {
+        Icon(name, mod().key(key).size(Number(p.size) || 24).color(colorOf(p.color || 'primary')));
+      } catch (_) {
+        Text('◇ ' + name, mod().key(key).sizeText(14));
+      }
+      return;
+    }
+    case 'floating-button':
+    case 'fab': {
+      // Contained FAB (never position:fixed to the browser — stays in device frame)
+      Button(
+        p.text || '+',
+        () => log && log('fab ' + (p.action || 'click')),
+        mod()
+          .key(key)
+          .size(52, 52)
+          .radius('50%')
+          .background(Theme.current.primary)
+          .align('center', 'center')
+          .addStyle('alignSelf', 'flex-end')
+          .addStyle('margin', '8px')
+      );
+      return;
+    }
+    case 'toast': {
+      Text(p.text || 'Toast', mod().key(key).sizeText(12).padding(8).background(Theme.current.surface).radius(8));
+      return;
+    }
+    case 'layer': {
+      Layer(mod().key(key).position('relative').width('100%'), () => {
+        (n.children || []).forEach((c) => renderNode(c, log, depth + 1));
+      });
+      return;
+    }
+    case 'gradient': {
+      const from = p.from || '#1a1f2e';
+      const to = p.to || Theme.current.primary;
+      Column(
+        mod()
+          .key(key)
+          .padding(Number(p.pad) || 12)
+          .radius(12)
+          .width('100%')
+          .gap(8)
+          .addStyle('backgroundImage', `linear-gradient(135deg, ${from}, ${to})`),
+        () => {
+          (n.children || []).forEach((c) => renderNode(c, log, depth + 1));
+        }
+      );
+      return;
+    }
+    case 'video': {
+      try {
+        VideoNode(mod().key(key).width('100%').height(Number(p.height) || 160).radius(8));
+      } catch (_) {
+        Text('[video]', mod().key(key).sizeText(12).color(colorOf('muted')));
+      }
+      return;
+    }
+    case 'audio': {
+      try {
+        AudioNode(mod().key(key).width('100%'));
+      } catch (_) {
+        Text('[audio]', mod().key(key).sizeText(12).color(colorOf('muted')));
+      }
+      return;
+    }
+    case 'map': {
+      try {
+        MapNode(mod().key(key).width('100%').height(Number(p.height) || 180).radius(8), {
+          lat: Number(p.lat) || 0,
+          lng: Number(p.lng) || 0,
+        });
+      } catch (_) {
+        Text('[mapa]', mod().key(key).sizeText(12).color(colorOf('muted')));
+      }
+      return;
+    }
+    case 'list-stream': {
+      List(mod().key(key).width('100%').height(Number(p.height) || 160), () => {
+        const st = getAlsetState(p.state || 'items', []);
+        const data = Array.isArray(st.get()) ? st.get() : [];
+        data.slice(0, 20).forEach((item, i) => {
+          Text(typeof item === 'string' ? item : JSON.stringify(item), mod().key(key + '-s' + i).sizeText(12));
+        });
+      });
+      return;
+    }
+    case 'animate': {
+      Animate(
+        () => {
+          (n.children || []).forEach((c) => renderNode(c, log, depth + 1));
+        },
+        { duration: Number(p.duration) || 400 }
+      );
+      return;
+    }
+
+    case 'gate':
+    case 'auth-gate': {
+      const role = String(p.role || p.minRole || 'user');
+      const session = getAlsetState('session', { role: 'guest', token: null });
+      const s = session.get() || { role: 'guest' };
+      const order = ['guest', 'user', 'operator', 'admin', 'master'];
+      const ok = order.indexOf(String(s.role || 'guest')) >= order.indexOf(role);
+      if (!ok) {
+        Text(p.deny || ('Requiere rol: ' + role), mod().key(key).sizeText(13).color(colorOf('danger')));
+        return;
+      }
+      Column(mod().key(key).gap(8), () => {
+        (n.children || []).forEach((c) => renderNode(c, log, depth + 1));
+      });
+      return;
+    }
+    case 'login-token': {
+      const userSt = getAlsetState(p.userState || 'user', '');
+      const passSt = getAlsetState(p.passState || 'pass', '');
+      const session = getAlsetState('session', { role: 'guest', token: null });
+      Card(mod().key(key).padding(14).gap(8).background(Theme.current.surface), () => {
+        Text(p.title || 'Acceso', mod().sizeText(16).weight('700'));
+        Input(userSt, mod().padding(10).width('100%'), { placeholder: 'usuario' });
+        Input(passSt, mod().padding(10).width('100%'), { placeholder: 'clave', type: 'password' });
+        Button(p.button || 'Entrar', async () => {
+          try {
+            const r = await fetch('/v1/auth/login', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ username: userSt.get(), password: passSt.get() }),
+            });
+            const j = await r.json();
+            if (!r.ok) throw new Error(j.error || 'login failed');
+            session.set({ role: j.role || 'user', token: j.token, username: j.username });
+            log && log('login ok · rol ' + (j.role || 'user'));
+          } catch (e) {
+            log && log('login error: ' + (e.message || e));
+          }
+        }, mod().background(Theme.current.primary));
+      });
+      return;
+    }
+    case 'role-badge': {
+      const session = getAlsetState('session', { role: 'guest' });
+      const s = session.get() || {};
+      Text('Rol: ' + (s.role || 'guest'), mod().key(key).sizeText(12).color(colorOf('muted')));
       return;
     }
     default:
@@ -404,41 +731,119 @@ function renderNode(n, log, depth = 0) {
  * format tree unchanged.
  */
 export function renderAlsetPreview(host, nodes, log, { device, theme } = {}) {
+  try {
+    // Simula el ancho de dispositivo para modifiers sm/md/lg del core Alset
+    if (device && device.width) {
+      window.__ALSET_VIEWPORT_WIDTH__ = device.width;
+    } else {
+      delete window.__ALSET_VIEWPORT_WIDTH__;
+    }
+    const bpMap = { mobile: 'sm', tablet: 'md', desktop: 'lg' };
+    if (typeof setForcedBreakpoint === 'function') {
+      setForcedBreakpoint(device ? (bpMap[device.id] || 'md') : null);
+    }
+  } catch (_) {}
   return withBudget('alset-preview', () => {
     if (!host) return;
-    // Map device → Alset breakpoint so layout adapts (sm/md/lg)
-    const bpMap = { mobile: 'sm', tablet: 'md', desktop: 'lg' };
-    setForcedBreakpoint(device ? bpMap[device.id] || 'md' : null);
-    // clear previous DOM + allow API flags to re-fire on full remount
+    // Reset one-shot API flags so auto components re-fetch on each full paint
+    Object.keys(window).forEach((k) => {
+      if (k.startsWith('__alset_api_') || k.startsWith('__alset_persisted_')) {
+        try { delete window[k]; } catch (_) { window[k] = false; }
+      }
+    });
+
     host.innerHTML = '';
     const frame = document.createElement('div');
     frame.className = 'device-frame';
     if (device) {
       frame.style.width = device.width + 'px';
       frame.style.maxWidth = '100%';
-      frame.style.minHeight = Math.min(device.height, 480) + 'px';
-      frame.dataset.device = device.id;
+      frame.style.height = Math.min(device.height, 640) + 'px';
+      frame.style.minHeight = Math.min(device.height, 640) + 'px';
+      frame.style.overflow = 'hidden';
+      frame.style.position = 'relative';
+      window.__ALSET_VIEWPORT_WIDTH__ = device.width;
+      frame.dataset.device = device.id || '';
+    } else {
+      window.__ALSET_VIEWPORT_WIDTH__ = undefined;
+      frame.style.position = 'relative';
+      frame.style.overflow = 'hidden';
     }
     const label = document.createElement('div');
     label.className = 'device-label';
     label.textContent = device
-      ? `${device.label} · ${device.width}px · Alset-JS alsetState`
+      ? `${device.label} · ${device.width}px · Alset-JS`
       : 'Alset-JS preview';
     const root = document.createElement('div');
+    root.id = 'alset-preview-root';
     root.className = 'preview-host';
     root.style.minHeight = '80px';
+    root.style.height = '100%';
+    root.style.overflow = 'auto';
+    root.style.position = 'relative';
+    root.style.color = '#f4f4f5';
+    root.style.boxSizing = 'border-box';
     frame.appendChild(label);
     frame.appendChild(root);
     host.appendChild(frame);
 
     applyThemeTokens(theme || THEME_COLORS);
 
-    guard('alset-mount', () => {
-      alsetMount(root, () => {
-        Column(mod().key('studio-preview-root').gap(10).padding(4), () => {
-          (nodes || []).forEach((n) => renderNode(n, log, 0));
+    let mounted = false;
+    try {
+      guard('alset-mount', () => {
+        // Clear any leftover children
+        while (root.firstChild) root.removeChild(root.firstChild);
+        alsetMount(root, () => {
+          Column(mod().key('studio-preview-root').gap(10).padding(4).width('100%'), () => {
+            const list = nodes || [];
+            if (!list.length) {
+              Text('Canvas vacío — arrastra componentes o carga un ejemplo', mod().sizeText(13).color(colorOf('muted')));
+              return;
+            }
+            list.forEach((n) => renderNode(n, log, 0));
+          });
         });
       });
+      mounted = root.childNodes.length > 0;
+    } catch (e) {
+      reportError(e, 'alset-preview');
+      mounted = false;
+    }
+
+    // Reliable fallback: full DOM painter (same component catalog)
+    if (!mounted) {
+      while (root.firstChild) root.removeChild(root.firstChild);
+      label.textContent = (device ? `${device.label} · ${device.width}px · ` : '') + 'DOM preview';
+      paintTree(root, nodes || [], log, 0);
+      log && log('preview · modo DOM (fallback)');
+    }
+
+    // After microtask, if still empty, force DOM paint
+    queueMicrotask(() => {
+      if (!root.isConnected) return;
+      if (!root.childNodes.length && (nodes || []).length) {
+        paintTree(root, nodes, log, 0);
+        label.textContent = (device ? `${device.label} · ${device.width}px · ` : '') + 'DOM preview';
+        log && log('preview · relleno DOM post-mount');
+      }
     });
   });
+}
+
+
+/** LispAI fusionado con el mismo registry alsetState del Studio */
+export function evalLispAgainstState(src, extra = {}) {
+  if (typeof window === 'undefined' || !window.AlsetLispEngine) {
+    return { ok: false, error: 'AlsetLispEngine no cargado (alset-lisp-engine.js)' };
+  }
+  const host = window.AlsetLispEngine.makeHostFromRegistry({
+    get: (k) => getAlsetState(k).get(),
+    set: (k, v) => getAlsetState(k, v).set(v),
+    dump: () => stateDump(),
+    remount: extra.remount,
+    onSetProp: extra.onSetProp,
+    onUi: extra.onUi,
+  });
+  return window.AlsetLispEngine.eval(src, host);
 }
