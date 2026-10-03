@@ -68,3 +68,7 @@ Zyrion es el **motor de decisión 0/1/2** (el 2 “absorbe” y corta el flujo).
 1. `git pull`
 2. Reinicia el Studio
 3. En el navegador: **Ctrl+Shift+R** (recarga forzada)
+
+## Alset-JS Editor
+Abre  · guía: [ALSET_JS_EDITOR.md](ALSET_JS_EDITOR.md)
+

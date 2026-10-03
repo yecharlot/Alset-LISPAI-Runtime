@@ -3,60 +3,68 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Alset-JS Editor</title>
+  <title>Alset-JS Editor · Runtime nativo</title>
   <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css" />
-  <style>
-    :root {
-      --bg: #050505; --panel: #0f0f0f; --gold: #ffd700; --text: #f5f5f5; --muted: #9a9a9a; --line: rgba(255,215,0,.15);
-    }
-    * { box-sizing: border-box; }
-    html, body { margin: 0; height: 100%; font-family: Inter, system-ui, sans-serif; background: var(--bg); color: var(--text); }
-    body { display: flex; flex-direction: column; }
-    header {
-      display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
-      padding: 10px 14px; border-bottom: 1px solid var(--line); background: rgba(15,15,15,.95);
-    }
-    header strong { color: var(--gold); letter-spacing: .06em; }
-    header span { color: var(--muted); font-size: 12px; }
-    .btn {
-      border: 0; border-radius: 999px; padding: 8px 14px; font-weight: 700; cursor: pointer;
-      background: linear-gradient(180deg, #ffe566, var(--gold)); color: #111;
-    }
-    .btn.ghost { background: transparent; color: var(--muted); border: 1px solid var(--line); }
-    main { flex: 1; display: grid; grid-template-columns: 1fr 1fr; min-height: 0; }
-    @media (max-width: 900px) { main { grid-template-columns: 1fr; grid-template-rows: 1fr 1fr; } }
-    .code-pane, .preview-pane { display: flex; flex-direction: column; min-height: 0; border-right: 1px solid var(--line); }
-    .preview-pane { border-right: 0; }
-    .label { font-size: 11px; color: var(--muted); padding: 8px 12px; border-bottom: 1px solid var(--line); }
-    #code {
-      flex: 1; width: 100%; border: 0; resize: none; padding: 12px;
-      background: #0a0a0a; color: #e8e8e8; font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 13px; line-height: 1.45;
-    }
-    #preview {
-      flex: 1; overflow: auto; padding: 12px; background: #050505;
-    }
-    .hint { padding: 8px 12px; font-size: 12px; color: var(--muted); border-top: 1px solid var(--line); }
-  </style>
+  <link rel="stylesheet" href="./editor.css" />
 </head>
 <body>
-  <header>
-    <strong>ALSET-JS EDITOR</strong>
-    <span>Solo primitivas Alset-JS-Runtime (PulseCore) · sin árbol Studio</span>
-    <span style="flex:1"></span>
-    <button type="button" class="btn ghost" id="btn-example">Cargar ejemplo mapa</button>
-    <button type="button" class="btn" id="btn-run">Ejecutar</button>
+  <header class="top">
+    <div class="brand">ALSET-JS <small>Runtime Editor</small></div>
+    <input id="app-name" class="name" value="mi-app-js" spellcheck="false" title="Nombre ANS" />
+    <div class="devices" role="group" aria-label="Dispositivo">
+      <button type="button" class="dev active" data-d="mobile">Móvil</button>
+      <button type="button" class="dev" data-d="tablet">Tablet</button>
+      <button type="button" class="dev" data-d="desktop">Desktop</button>
+      <button type="button" class="dev" data-d="watch">Watch</button>
+    </div>
+    <span class="spacer"></span>
+    <button type="button" class="btn ghost" id="btn-examples">Ejemplos</button>
+    <button type="button" class="btn ghost" id="btn-run">Ejecutar</button>
+    <button type="button" class="btn gold" id="btn-deploy">Desplegar</button>
+    <a class="btn ghost" href="/" title="Volver a Studio">Studio</a>
   </header>
-  <main>
-    <section class="code-pane">
-      <div class="label">Código (usa Column, Text, Button, MapNode, alsetState…)</div>
+
+  <div class="workspace">
+    <aside class="toolbox">
+      <h3>Componentes</h3>
+      <div id="toolbox"></div>
+      <h3>Plantillas</h3>
+      <div id="templates"></div>
+      <h3>Iconos</h3>
+      <div id="icons" class="icons"></div>
+    </aside>
+
+    <section class="code-col">
+      <div class="label">Código Alset-JS (genera la UI)</div>
       <textarea id="code" spellcheck="false"></textarea>
-      <div class="hint">Este editor no usa el toolbox de Studio. Todo se escribe con la API de Alset-JS-Runtime.</div>
+      <div class="status-bar">
+        <span id="status">Listo</span>
+        <span id="hint">Define <code>function App()</code> que devuelva el árbol</span>
+      </div>
     </section>
-    <section class="preview-pane">
-      <div class="label">Vista en vivo</div>
-      <div id="preview"></div>
+
+    <section class="preview-col">
+      <div class="label">Preview · <span id="dev-label">Móvil 390×720</span></div>
+      <div id="preview-host" class="preview-host">
+        <div id="device-frame" class="device-frame mobile">
+          <div id="preview" class="preview-root"></div>
+        </div>
+      </div>
+      <div class="label">Estados vivos</div>
+      <pre id="states-out" class="states-out">—</pre>
     </section>
-  </main>
+  </div>
+
+  <aside id="examples-drawer" class="drawer" hidden>
+    <div class="drawer-panel">
+      <header>
+        <strong>Ejemplos Alset-JS</strong>
+        <button type="button" class="btn ghost" id="btn-close-ex">Cerrar</button>
+      </header>
+      <div id="examples-list"></div>
+    </div>
+  </aside>
+
   <script type="module" src="./main.js"></script>
 </body>
 </html>

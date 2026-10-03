@@ -161,6 +161,59 @@ store := &dataStore{items: []map[string]any{}}
 		_ = os.MkdirAll(appDir, 0o755)
 		_ = os.WriteFile(filepath.Join(appDir, "app.alset.json"), raw, 0o644)
 
+		// --- Alset-JS native apps (source code, not Studio tree) ---
+		if kind, _ := app["kind"].(string); kind == "alset-js" || kind == "js" {
+			src, _ := app["source"].(string)
+			if src == "" {
+				src, _ = app["code"].(string)
+			}
+			if src == "" {
+				writeJSONStatus(w, 400, map[string]any{"error": "alset-js deploy requires source/code"})
+				return
+			}
+			_ = os.WriteFile(filepath.Join(appDir, "app.js"), []byte(src), 0o644)
+			coreSrc := filepath.Join(root, "alset", "AlsetPulseCore.js")
+			if b, err := os.ReadFile(coreSrc); err == nil {
+				_ = os.WriteFile(filepath.Join(appDir, "AlsetPulseCore.js"), b, 0o644)
+			}
+			mnSrc := filepath.Join(root, "runtime", "mininode.js")
+			if b, err := os.ReadFile(mnSrc); err == nil {
+				_ = os.WriteFile(filepath.Join(appDir, "mininode.js"), b, 0o644)
+			}
+			jsIndex := "<!DOCTYPE html>\n<html lang=\"es\"><head>\n<meta charset=\"utf-8\"/>\n" +
+				"<meta name=\"viewport\" content=\"width=device-width,initial-scale=1,viewport-fit=cover\"/>\n" +
+				"<meta name=\"theme-color\" content=\"#050505\"/>\n" +
+				"<meta name=\"alset-app\" content=\"" + name + "\"/>\n" +
+				"<meta name=\"alset-kind\" content=\"alset-js\"/>\n" +
+				"<meta name=\"alset-ans\" content=\"" + name + ".app.ans\"/>\n" +
+				"<link rel=\"manifest\" href=\"./manifest.webmanifest\"/>\n" +
+				"<link rel=\"stylesheet\" href=\"https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css\"/>\n" +
+				"<title>" + name + "</title>\n" +
+				"<style>html,body{margin:0;height:100%;background:#050505;color:#fff;font-family:system-ui,sans-serif}#root{min-height:100dvh}</style>\n" +
+				"</head><body>\n<div id=\"root\"></div>\n<script src=\"./mininode.js\"></script>\n" +
+				"<script type=\"module\" src=\"./app-boot.js\"></script>\n</body></html>\n"
+			boot := "import * as Core from './AlsetPulseCore.js';\n" +
+				"const { alsetState, Column, Row, Text, Button, Card, Spacer, mod, MapNode, Theme, Icon, Input, List, Image, Router, navigateTo, currentRoute, Animate, createToast, FloatingButton, GradientLayer, LoginForm, RegisterForm, AudioNode, VideoNode } = Core;\n" +
+				"const root = document.getElementById('root');\n" +
+				"const src = await fetch('./app.js').then(r => r.text());\n" +
+				"try {\n" +
+				"  const fn = new Function('alsetState','Column','Row','Text','Button','Card','Spacer','mod','MapNode','Theme','Icon','Input','List','Image','Router','navigateTo','currentRoute','Animate','createToast','FloatingButton','GradientLayer','LoginForm','RegisterForm','AudioNode','VideoNode','root','Core', src + \"\\n;\\nif (typeof App === 'function') { const v = App(); if (v && root) root.appendChild(v); }\");\n" +
+				"  fn(alsetState, Column, Row, Text, Button, Card, Spacer, mod, MapNode, Theme, Icon, Input, List, Image, Router, navigateTo, currentRoute, Animate, createToast, FloatingButton, GradientLayer, LoginForm, RegisterForm, AudioNode, VideoNode, root, Core);\n" +
+				"} catch (e) {\n" +
+				"  root.innerHTML = '<pre style=\"color:#f88;padding:16px\">Error: ' + (e && e.message ? e.message : e) + '</pre>';\n" +
+				"  console.error(e);\n" +
+				"}\n"
+			_ = os.WriteFile(filepath.Join(appDir, "index.html"), []byte(jsIndex), 0o644)
+			_ = os.WriteFile(filepath.Join(appDir, "app-boot.js"), []byte(boot), 0o644)
+			man := fmt.Sprintf("{\"name\":%q,\"short_name\":%q,\"start_url\":\"./\",\"display\":\"standalone\",\"background_color\":\"#050505\",\"theme_color\":\"#050505\",\"lang\":\"es\"}", name, name)
+			_ = os.WriteFile(filepath.Join(appDir, "manifest.webmanifest"), []byte(man), 0o644)
+			writeJSON(w, map[string]any{
+				"ok": true, "name": name, "kind": "alset-js", "rootcid": rootcid,
+				"url": "/apps/" + name + "/", "pwa": true, "ans": name + ".app.ans",
+			})
+			return
+		}
+
 		manifest := fmt.Sprintf(`{
   "name": %q,
   "short_name": %q,
