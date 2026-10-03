@@ -77,3 +77,29 @@ card: Producto destacado
 ```
 
 Genera un `function App()` listo para ejecutar y desplegar.
+
+## Paneles (mostrar / ocultar)
+
+En la barra superior: **Toolbox · Código · Preview · Mind·Zyrion**.  
+Igual que en Studio: quita lo que no uses para trabajar a pantalla completa.
+
+## Arrastrar y soltar
+
+- Componentes y plantillas del toolbox son **arrastrables**.
+- Suéltalos en el **editor de código** (CodeMirror) o en el **preview**.
+- Iconos nativos se insertan como `Icon("nombre", …)` con SVG correcto.
+
+## Ejemplos incluidos
+
+Además de plantillas locales, el pack incluye adaptaciones de **yecharlot/Alset-JS-Runtime** (`basic`, `prismatec` lite, etc.) y enlaces a la fuente en `/alset-editor/examples/`.
+
+## Mind · Zyrion · Silogismos · Neural
+
+Panel derecho del editor:
+
+- Latido Mind (`/api/mind/tick`)
+- Evaluación Zyrion (API o fallback local)
+- Assert / Infer / Ask de hechos ternarios locales
+- Inspección de `alsetNeuralState`
+
+Guía de casos de uso: [MIND_ZYRION_NEURAL_PASO_A_PASO.md](MIND_ZYRION_NEURAL_PASO_A_PASO.md).

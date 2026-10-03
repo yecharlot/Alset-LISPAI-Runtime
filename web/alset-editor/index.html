@@ -5,46 +5,54 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Alset-JS Editor · Runtime nativo</title>
   <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.css" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/theme/material-darker.min.css" />
   <link rel="stylesheet" href="./editor.css" />
 </head>
-<body>
+<body class="panels-left panels-right panels-preview panels-agent">
   <header class="top">
     <div class="brand">ALSET-JS <small>Runtime Editor</small></div>
     <input id="app-name" class="name" value="mi-app-js" spellcheck="false" title="Nombre ANS" />
-    <div class="devices" role="group" aria-label="Dispositivo">
+    <div class="devices" role="group">
       <button type="button" class="dev active" data-d="mobile">Móvil</button>
       <button type="button" class="dev" data-d="tablet">Tablet</button>
       <button type="button" class="dev" data-d="desktop">Desktop</button>
       <button type="button" class="dev" data-d="watch">Watch</button>
     </div>
+    <div class="panel-toggles">
+      <button type="button" class="ptog active" data-panel="left">Toolbox</button>
+      <button type="button" class="ptog active" data-panel="right">Código</button>
+      <button type="button" class="ptog active" data-panel="preview">Preview</button>
+      <button type="button" class="ptog active" data-panel="agent">Mind·Zyrion</button>
+    </div>
     <span class="spacer"></span>
     <button type="button" class="btn ghost" id="btn-examples">Ejemplos</button>
-    <button type="button" class="btn ghost" id="btn-sketch">Bosquejo→código</button>
+    <button type="button" class="btn ghost" id="btn-sketch">Bosquejo</button>
     <button type="button" class="btn ghost" id="btn-run">Ejecutar</button>
     <button type="button" class="btn gold" id="btn-deploy">Desplegar</button>
-    <a class="btn ghost" href="/" title="Volver a Studio">Studio</a>
+    <a class="btn ghost" href="/">Studio</a>
   </header>
 
   <div class="workspace">
-    <aside class="toolbox">
-      <h3>Componentes</h3>
-      <div id="toolbox"></div>
-      <h3>Plantillas</h3>
-      <div id="templates"></div>
-      <h3>Iconos</h3>
+    <aside class="toolbox" id="panel-left">
+      <h3>Arrastrar → código / preview</h3>
+      <div id="toolbox" class="tool-list"></div>
+      <h3>Plantillas con lógica</h3>
+      <div id="templates" class="tool-list"></div>
+      <h3>Iconos nativos</h3>
       <div id="icons" class="icons"></div>
     </aside>
 
-    <section class="code-col">
-      <div class="label">Código Alset-JS (genera la UI)</div>
-      <textarea id="code" spellcheck="false"></textarea>
+    <section class="code-col" id="panel-right">
+      <div class="label">Código Alset-JS <span class="hint">resaltado · indentación</span></div>
+      <textarea id="code"></textarea>
       <div class="status-bar">
         <span id="status">Listo</span>
-        <span id="hint">Define <code>function App()</code> que devuelva el árbol</span>
+        <span id="hint">function App() · suelta componentes aquí o en el preview</span>
       </div>
     </section>
 
-    <section class="preview-col">
+    <section class="preview-col" id="panel-preview">
       <div class="label">Preview · <span id="dev-label">Móvil 390×720</span></div>
       <div id="preview-host" class="preview-host">
         <div id="device-frame" class="device-frame mobile">
@@ -54,12 +62,36 @@
       <div class="label">Estados vivos</div>
       <pre id="states-out" class="states-out">—</pre>
     </section>
+
+    <aside class="agent-col" id="panel-agent">
+      <div class="label">Mind · latido</div>
+      <textarea id="mind-in" rows="2" placeholder="hola · quién eres"></textarea>
+      <button type="button" class="btn gold block" id="btn-mind">Enviar latido</button>
+      <pre id="mind-out" class="logic-out">Respuesta Mind…</pre>
+      <div class="label">Zyrion</div>
+      <div class="zyr-row">
+        <label>a <input id="zyr-a" type="number" step="0.1" value="0.2" /></label>
+        <label>b <input id="zyr-b" type="number" step="0.1" value="0.8" /></label>
+      </div>
+      <button type="button" class="btn gold block" id="btn-zyrion">Evaluar</button>
+      <pre id="zyrion-out" class="logic-out">—</pre>
+      <div class="label">Silogismos (local + API)</div>
+      <textarea id="syl-in" rows="3" placeholder='{"s":"organismo","r":"tiene_capacidad","o":"backup","c":2}'></textarea>
+      <div class="zyr-row">
+        <button type="button" class="btn ghost" id="btn-assert">Assert</button>
+        <button type="button" class="btn ghost" id="btn-infer">Infer</button>
+        <button type="button" class="btn ghost" id="btn-ask">Ask</button>
+      </div>
+      <pre id="syl-out" class="logic-out">Hechos locales del editor…</pre>
+      <div class="label">Neuronal (alsetNeuralState)</div>
+      <pre id="neural-out" class="logic-out">Claves neuronales en sesión…</pre>
+    </aside>
   </div>
 
   <aside id="examples-drawer" class="drawer" hidden>
     <div class="drawer-panel">
       <header>
-        <strong>Ejemplos Alset-JS</strong>
+        <strong>Ejemplos (Studio + Alset-JS-Runtime)</strong>
         <button type="button" class="btn ghost" id="btn-close-ex">Cerrar</button>
       </header>
       <div id="examples-list"></div>
@@ -69,22 +101,25 @@
   <aside id="sketch-drawer" class="drawer" hidden>
     <div class="drawer-panel">
       <header>
-        <strong>Bosquejo de layout</strong>
+        <strong>Bosquejo → código</strong>
         <button type="button" class="btn ghost" id="btn-close-sketch">Cerrar</button>
       </header>
-      <p style="font-size:12px;color:var(--muted)">Una línea por elemento. Ejemplos de prefijos:</p>
-      <pre style="font-size:11px;background:#0a0a0a;padding:10px;border-radius:8px">titulo: Mi app
+      <pre class="sketch-help">titulo: Mi app
 texto: Subtítulo
 boton: Guardar
 input: nombre
 fila: A | B | C
 mapa
-card: Producto</pre>
-      <textarea id="sketch-src" style="width:100%;height:160px;background:#0a0a0a;color:#eee;border:1px solid var(--line);border-radius:8px;padding:8px;font-family:monospace;font-size:12px"></textarea>
-      <button type="button" class="btn gold" id="btn-apply-sketch" style="margin-top:10px;width:100%">Generar código</button>
+card: Producto
+drawer
+tabs</pre>
+      <textarea id="sketch-src"></textarea>
+      <button type="button" class="btn gold block" id="btn-apply-sketch">Generar</button>
     </div>
   </aside>
 
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/javascript/javascript.min.js"></script>
   <script type="module" src="./main.js"></script>
 </body>
 </html>
