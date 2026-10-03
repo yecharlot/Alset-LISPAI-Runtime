@@ -23,7 +23,7 @@ export const CATALOG = [
   ]},
   { group: 'Compuestos', items: [
     { type: 'metric', label: 'Métrica', defaults: { title: 'KPI', value: '—', state: 'kpi', hint: 'alsetState' } },
-    { type: 'list', label: 'Lista', defaults: { state: 'items', empty: 'Sin datos' } },
+    { type: 'list', label: 'Lista', defaults: { state: 'items', empty: 'Sin datos', itemTitle: 'name', itemSubtitle: 'description', itemMeta: '' } },
     { type: 'nav', label: 'Nav tabs', defaults: { tabs: 'Inicio,Datos,Ajustes', state: 'tab' } },
     { type: 'hero', label: 'Hero', defaults: { title: 'Producto', subtitle: 'Declarativo · Alset' } },
     { type: 'table', label: 'Tabla', defaults: { state: 'rows', columns: 'id,name' } },
@@ -34,10 +34,10 @@ export const CATALOG = [
     { type: 'role-badge', label: 'Badge de rol', defaults: {} },
   ]},
   { group: 'Datos / red', items: [
-    { type: 'api', label: 'REST GET', defaults: { url: '/v1/health', state: 'apiData', auto: true } },
-    { type: 'api-post', label: 'REST POST', defaults: { url: '/v1/data', state: 'postBody', event: 'submit' } },
-    { type: 'state', label: 'Estado', defaults: { name: 'count', value: '0' } },
-    { type: 'persist', label: 'Persistencia', defaults: { key: 'app.v1', state: 'count' } },
+    { type: 'api', label: 'REST GET', connector: true, defaults: { url: '/v1/health', state: 'apiData', auto: true, silent: true } },
+    { type: 'api-post', label: 'REST POST', connector: true, defaults: { url: '/v1/data', state: 'postBody', event: 'submit', silent: true } },
+    { type: 'state', label: 'Estado', connector: true, defaults: { name: 'count', value: '0', silent: true } },
+    { type: 'persist', label: 'Persistencia', connector: true, defaults: { key: 'app.v1', state: 'count', silent: true } },
     { type: 'ipfs', label: 'RootCID / IPFS', defaults: { cid: '', state: 'ipfsDoc' } },
     { type: 'agent', label: 'Agente', defaults: { name: 'ui-agent', note: 'política default-deny en Core' } },
   ]},
@@ -70,8 +70,8 @@ export const CATALOG = [
     { type: 'progress', label: 'Progress bar', defaults: { state: 'progress', value: 40 } },
     { type: 'file-browser', label: 'Browser archivos', defaults: { state: 'fileData', multiple: false } },
     { type: 'image-browser', label: 'Browser imágenes', defaults: { state: 'imageData', accept: 'image/*' } },
-    { type: 'rest-consumer', label: 'API REST Consumer', defaults: { method: 'GET', url: '/v1/data', bind: 'apiData', bindPath: 'items', auto: true, buttonText: 'Cargar' } },
-    { type: 'pulse-consumer', label: 'Pulse Server Consumer', defaults: { url: '/api/pulse', keys: 'home,detail', state: 'pulseData', auto: false } },
+    { type: 'rest-consumer', connector: true, label: 'API REST Consumer', defaults: { method: 'GET', url: '/v1/data', bind: 'apiData', bindPath: 'items', auto: true, buttonText: 'Cargar', silent: true } },
+    { type: 'pulse-consumer', connector: true, label: 'Pulse Server Consumer', defaults: { url: '/api/pulse', keys: 'home,detail', state: 'pulseData', auto: false, silent: true } },
     { type: 'view-agent', label: 'Vista-agente', defaults: { key: 'home', lifecycle: 'mount' }, container: true },
     { type: 'nav-link', label: 'Nav detalle', defaults: { text: 'Ver detalle', route: 'detail', detailState: 'selected', routeState: 'route' } },
     { type: 'zyrion-filter', label: 'Zyrion filter', defaults: { source: 'apiData', out: 'apiFiltered', field: 'score', mode: 1 } },
@@ -463,9 +463,24 @@ export function createNode(type, defaults = {}) {
   return {
     id: uid(),
     type,
+    connector: !!(meta && meta.connector),
     props: { ...d },
     children: container ? [] : undefined,
   };
+}
+
+/** Tipos que no se pintan en la vista (solo lógica / datos). */
+export const CONNECTOR_TYPES = new Set(
+  CATALOG.flatMap((g) => g.items).filter((i) => i.connector).map((i) => i.type)
+    .concat(['api', 'api-post', 'state', 'persist', 'rest-consumer', 'pulse-consumer', 'pulse-server-consumer', 'ipfs', 'agent'])
+);
+
+export function isConnectorNode(n) {
+  if (!n) return false;
+  if (n.connector) return true;
+  if (CONNECTOR_TYPES.has(n.type)) return true;
+  if (n.props && (n.props.silent === true || n.props.silent === 'true')) return true;
+  return false;
 }
 
 export function treeToLisp(nodes) {
@@ -513,7 +528,15 @@ export function applyLispSnippet(src, nodes) {
   if (!text) return 0;
   let n = 0;
 
-  // 1) set-prop patches (string | number | bool)
+  // 0) Formas de estado: no mutan el árbol aquí (las maneja AlsetLispEngine)
+  const onlyState =
+    /^\(\s*(get-state|set-state|swap-state|incf-state|toggle-state|when-state|states|progn)\b/i.test(text) &&
+    !/\(\s*ui\b/i.test(text) &&
+    !/\(\s*set-prop\b/i.test(text) &&
+    !/\(\s*column\b/i.test(text);
+  if (onlyState) return 0;
+
+  // 1) set-prop patches (string | number | bool) — puede haber varias en un progn
   const reProp = /\(set-prop\s+(\w+)\s+(\w+)\s+("(?:\\.|[^"\\])*"|-?\d+(?:\.\d+)?|true|false)\)/g;
   let m;
   while ((m = reProp.exec(text))) {
@@ -527,33 +550,37 @@ export function applyLispSnippet(src, nodes) {
     else val = Number(raw);
     const walk = (list) => {
       for (const node of list || []) {
-        if (node.id === id) {
+        if (node && node.id === id) {
+          if (!node.props) node.props = {};
           node.props[key] = val;
           n++;
         }
-        if (node.children) walk(node.children);
+        if (node && node.children) walk(node.children);
       }
     };
     walk(nodes);
   }
 
-  // 2) Full UI tree: (ui …) or top-level column/row
+  // 2) Full UI tree solo si el fuente EMPIEZA como UI (evita reventar el canvas con basura)
   const isFull =
     /^\(\s*ui\b/i.test(text) ||
     /^\(\s*do\b/i.test(text) ||
-    /^\(\s*column\b/i.test(text) ||
-    /^\(\s*row\b/i.test(text);
+    (/^\(\s*column\b/i.test(text) && !/set-prop/i.test(text));
   if (isFull) {
     try {
       const built = lispTreeToNodes(text);
       if (built && built.length) {
-        nodes.length = 0;
-        built.forEach((x) => nodes.push(x));
-        n += built.length;
+        // Validar nodos mínimos antes de reemplazar
+        const ok = built.every((x) => x && x.type && x.id);
+        if (ok) {
+          nodes.length = 0;
+          built.forEach((x) => nodes.push(x));
+          n += built.length;
+        }
       }
     } catch (e) {
       console.warn('[LispAI] full tree', e);
-      throw e;
+      throw new Error('Árbol Lisp inválido: ' + (e.message || e) + ' — usa (set-prop id key "valor") para parches seguros');
     }
   }
   return n;

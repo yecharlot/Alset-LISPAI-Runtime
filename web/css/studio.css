@@ -439,3 +439,6 @@ body.studio-full {
   overflow: auto;
   min-height: 80px;
 }
+
+.node.node-connector { border-style: dashed; opacity: 0.85; }
+.node.node-connector .meta::after { content: " · conector"; color: var(--blue); }

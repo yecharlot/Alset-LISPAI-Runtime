@@ -129,7 +129,7 @@ function paintNode(parent, n, log, depth) {
       break;
 
     case 'api':
-      node = el('div', 'pv-api', 'GET ' + (p.url || '') + ' → ' + (p.state || 'apiData'));
+      node = el('div', 'pv-connector'); node.style.display='none'; node.dataset.connector='api'; // lógica en preview runtime
       node.style.cssText =
         'font-size:11px;color:#5b9cf5;padding:6px 8px;border-radius:8px;background:rgba(91,156,245,0.08)';
       if (p.auto && p.url) {
@@ -146,7 +146,7 @@ function paintNode(parent, n, log, depth) {
       break;
 
     case 'api-post':
-      node = el('div', 'pv-api', 'POST ' + (p.url || '/v1/data'));
+      node = el('div', 'pv-connector'); node.style.display='none';
       node.style.cssText = 'font-size:11px;color:#5b9cf5;padding:6px 8px';
       break;
 
@@ -236,7 +236,7 @@ function paintNode(parent, n, log, depth) {
       return;
 
     case 'state':
-      node = el('div', 'pv-muted', `state ${p.name}=${p.value ?? ''}`);
+      node = el('div', 'pv-connector'); node.style.display='none'; // inicializa en runtime
       break;
 
     case 'persist':

@@ -230,13 +230,26 @@ function renderNode(n, log, depth = 0) {
     }
     case 'list': {
       const st = getAlsetState(p.state || 'items', []);
-      const data = st.get();
-      Column(mod().key(key).gap(4), () => {
+      let data = st.get();
+      if (data && typeof data === 'object' && !Array.isArray(data) && Array.isArray(data.items)) data = data.items;
+      const titleF = p.itemTitle || p.titleField || 'name';
+      const subF = p.itemSubtitle || p.subtitleField || 'description';
+      const metaF = p.itemMeta || p.metaField || '';
+      Column(mod().key(key).gap(6), () => {
         if (!Array.isArray(data) || !data.length) {
           Text(p.empty || 'Sin datos', mod().sizeText(12).color(colorOf('muted')));
         } else {
           data.slice(0, 40).forEach((item, i) => {
-            Text(typeof item === 'string' ? item : JSON.stringify(item), mod().key(key + '-i' + i).sizeText(12));
+            if (item != null && typeof item === 'object') {
+              const title = item[titleF] ?? item.title ?? item.name ?? item.id ?? ('#' + i);
+              Text(String(title), mod().key(key + '-t' + i).sizeText(13).weight('700'));
+              const sub = subF ? (item[subF] ?? '') : '';
+              if (sub !== '' && sub != null) Text(String(sub), mod().key(key + '-s' + i).sizeText(11).color(colorOf('muted')));
+              const meta = metaF ? (item[metaF] ?? '') : '';
+              if (meta !== '' && meta != null) Text(String(meta), mod().key(key + '-m' + i).sizeText(12).color(colorOf('primary')));
+            } else {
+              Text(String(item), mod().key(key + '-i' + i).sizeText(12));
+            }
           });
         }
       });
@@ -340,7 +353,9 @@ function renderNode(n, log, depth = 0) {
       return;
     }
     case 'api': {
-      Text('GET ' + (p.url || '') + ' → ' + (p.state || 'apiData'), mod().key(key).sizeText(11).color(colorOf('secondary')));
+      // connector silencioso — solo efecto sobre state
+      const _apiSilent = true;
+      Text('', mod().key(key).sizeText(0));
       if (p.auto && p.url) {
         // fire once per mount generation
         const flag = '__alset_api_' + (n.id || p.url);
@@ -357,14 +372,12 @@ function renderNode(n, log, depth = 0) {
       return;
     }
     case 'api-post': {
-      Text('POST ' + (p.url || '/v1/data'), mod().key(key).sizeText(11).color(colorOf('secondary')));
+      // conector silencioso
       return;
     }
     case 'state': {
       const st = getAlsetState(p.name || 'x', p.value ?? '');
-      // ensure initial
       if (st.get() === '' || st.get() === undefined) st.set(p.value ?? '');
-      Text(`state ${p.name}=${st.get()}`, mod().key(key).sizeText(11).color(colorOf('secondary')));
       return;
     }
     case 'persist': {

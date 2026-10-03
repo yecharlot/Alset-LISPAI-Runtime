@@ -58,7 +58,7 @@ function renderToolbox() {
       const t = document.createElement('div');
       t.className = 'tool';
       t.draggable = true;
-      t.innerHTML = `<strong>${item.label}</strong><span>${item.type}</span>`;
+      t.innerHTML = `<strong>${item.label}</strong><span>${item.type}${item.connector ? " · conector" : ""}</span>`;
       t.addEventListener('dragstart', (e) => {
         e.dataTransfer.setData('application/x-alset-type', item.type);
       });
@@ -137,7 +137,7 @@ function renderColors() {
 
 function nodeEl(n) {
   const d = document.createElement('div');
-  d.className = 'node' + (n.id === selectedId ? ' selected' : '');
+  d.className = 'node' + (n.id === selectedId ? ' selected' : '') + (n.connector || (n.props && n.props.silent) ? ' node-connector' : '');
   d.innerHTML = `<div class="kind">${n.type}</div>
     <div class="label">${n.props?.text || n.props?.title || n.props?.name || n.props?.url || n.type}</div>
     <div class="meta">${n.id}${n.props?.state ? ' · state:' + n.props.state : ''}</div>`;
@@ -523,16 +523,25 @@ export function bootBuilder() {
   $('btn-apply-lisp').onclick = () => {
     const src = $('lisp').value;
     // Prioridad: formas de estado fusionadas (get-state / set-state / …)
-    if (/\(\s*(get-state|set-state|swap-state|incf-state|toggle-state|when-state|states)\b/.test(src)
-        || (/\(\s*\+/.test(src) && !/\(ui\b/.test(src) && !/\(set-prop\b/.test(src))) {
-      const r = evalLispAgainstState(src, {
-        remount: () => { try { runPreview(); } catch (_) {} },
-      });
-      log('LispAI↔alsetState · ' + JSON.stringify(r));
-      if (r.ok) {
-        lispDirty = false;
-        setStatus('state-lisp ok');
-        return;
+    // 1) Motor fusionado alsetState (nunca tumba el árbol)
+    if (/\b(get-state|set-state|swap-state|incf-state|toggle-state|when-state|states)\b/.test(src)
+        || (/\(\s*\+/.test(src) && !/\(ui\b/.test(src) && !/\(set-prop\b/.test(src) && !/\(column\b/.test(src))) {
+      try {
+        const r = evalLispAgainstState(src, {
+          remount: () => { try { paintPreviewOnly(); } catch (_) {} },
+        });
+        log('LispAI↔alsetState · ' + JSON.stringify(r));
+        if (r && r.ok) {
+          lispDirty = false;
+          setStatus('state-lisp ok');
+          try { paintStatesPanel(); } catch (_) {}
+          // Si también hay set-prop, seguir; si no, listo
+          if (!/\(set-prop\b/.test(src) && !/^\(\s*ui\b/i.test(src) && !/^\(\s*column\b/i.test(src)) {
+            return;
+          }
+        }
+      } catch (e) {
+        log('state-lisp err: ' + (e.message || e));
       }
     }
 

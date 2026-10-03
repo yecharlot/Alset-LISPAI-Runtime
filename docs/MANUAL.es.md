@@ -264,3 +264,8 @@ En el panel derecho **Lógica**:
 La galería de **Iconos** está bajo Colores en el toolbox izquierdo (clic inserta en el canvas).
 
 Ejemplos nuevos: *Estados y botones*, *CRUD + tabla*, *Navegación tabs*, *Galería iconos UI*, *Mind · Zyrion UI*, *Eventos · drawer · nav*.
+
+
+## Componentes, conectores y estados avanzados
+
+→ **[docs/COMPONENTES_Y_CONECTORES.es.md](docs/COMPONENTES_Y_CONECTORES.es.md)**

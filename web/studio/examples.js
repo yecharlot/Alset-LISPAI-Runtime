@@ -1100,8 +1100,8 @@ function demoStateLogic() {
   c.children.push(muted('El metric lee contador; los botones usan setState / action'));
   c.children.push(createNode('metric', { title: 'Contador', value: '0', state: 'contador', hint: 'alsetState' }));
   const r = row(8);
-  r.children.push(createNode('button', { text: '+1', action: 'inc', setState: 'contador', setValue: '1' }));
-  r.children.push(createNode('button', { text: 'Reset', setState: 'contador', setValue: '0' }));
+  r.children.push(createNode('button', { text: '+1', setState: 'contador', setOp: 'incf', setValue: '1' }));
+  r.children.push(createNode('button', { text: 'Reset', setState: 'contador', setValue: 0 }));
   r.children.push(createNode('button', { text: 'Tab Pedidos', action: 'tab-Pedidos' }));
   c.children.push(r);
   c.children.push(createNode('input', { placeholder: 'Tu nombre', state: 'nombre' }));

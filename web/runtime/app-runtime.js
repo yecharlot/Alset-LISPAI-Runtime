@@ -15,7 +15,14 @@
     ok: '#34d399',
   };
 
-  function el(tag, cls, text) {
+  
+const CONNECTOR_TYPES = new Set(['api','api-post','state','persist','rest-consumer','pulse-consumer','pulse-server-consumer','ipfs','agent','mcp-agent']);
+function isConnectorType(type, props) {
+  if (CONNECTOR_TYPES.has(type)) return true;
+  if (props && (props.silent === true || props.silent === 'true')) return true;
+  return false;
+}
+function el(tag, cls, text) {
     const e = document.createElement(tag);
     if (cls) e.className = cls;
     if (text != null && text !== '') e.textContent = String(text);
@@ -207,6 +214,12 @@
     const interactive = !!ctx.interactive;
 
     const wrap = el('div', 'rt-node');
+
+        if (isConnectorType(n.type, n.props || {})) {
+          wrap.classList.add('rt-connector');
+          wrap.dataset.connector = '1';
+          wrap.style.cssText = 'display:none!important;height:0;width:0;margin:0;padding:0;overflow:hidden;border:0;position:absolute;pointer-events:none';
+        }
     wrap.setAttribute('data-node-id', n.id || '');
     wrap.setAttribute('data-type', n.type);
     const nodeKey = p.key || p.agentKey || n.id || '';
@@ -261,10 +274,40 @@
           }
           // setState explícito: setState + setValue
           if (p.setState != null && ctx.setState) {
+            const op = String(p.setOp || p.op || '').toLowerCase();
             let v = p.setValue;
             if (v === 'true') v = true;
-            if (v === 'false') v = false;
-            ctx.setState(p.setState, v);
+            else if (v === 'false') v = false;
+            else if (v != null && v !== '' && !Number.isNaN(Number(v)) && typeof v !== 'boolean') v = Number(v);
+            if (op === 'incf' || op === 'inc' || op === '+') {
+              const cur = Number(ctx.state?.[p.setState]) || 0;
+              const d = (v != null && v !== '') ? Number(v) || 1 : 1;
+              ctx.setState(p.setState, cur + d);
+            } else if (op === 'decf' || op === 'dec' || op === '-') {
+              const cur = Number(ctx.state?.[p.setState]) || 0;
+              const d = (v != null && v !== '') ? Number(v) || 1 : 1;
+              ctx.setState(p.setState, cur - d);
+            } else if (op === 'toggle') {
+              ctx.setState(p.setState, !ctx.state?.[p.setState]);
+            } else if (op === 'push' && Array.isArray(ctx.state?.[p.setState])) {
+              const arr = (ctx.state[p.setState] || []).slice();
+              arr.push(v);
+              ctx.setState(p.setState, arr);
+            } else {
+              ctx.setState(p.setState, v);
+            }
+          }
+          // Lisp inline: action comienza con lisp:  o prop lisp
+          const lispCmd = p.lisp || (String(p.action || '').startsWith('lisp:') ? String(p.action).slice(5) : '');
+          if (lispCmd && typeof window !== 'undefined' && window.AlsetLispEngine) {
+            try {
+              window.AlsetLispEngine.eval(lispCmd, {
+                getState: (k) => ctx.state?.[k],
+                setState: (k, val) => ctx.setState && ctx.setState(k, val),
+                dump: () => ({ ...(ctx.state || {}) }),
+                remount: () => ctx.remount && ctx.remount(),
+              });
+            } catch (e) { log && log('lisp action err ' + e); }
           }
           ctx.emit && ctx.emit('action', { action, id: n.id, text: p.text });
           ctx.remount && ctx.remount();
@@ -548,12 +591,48 @@
         break;
       }
       case 'list': {
-        const data = ctx.state?.[p.state];
+        let data = ctx.state?.[p.state];
+        if (data && typeof data === 'object' && !Array.isArray(data) && Array.isArray(data.items)) data = data.items;
         addClass(wrap, 'rt-card');
+        const titleF = p.itemTitle || p.titleField || 'name';
+        const subF = p.itemSubtitle || p.subtitleField || 'description';
+        const metaF = p.itemMeta || p.metaField || '';
         if (Array.isArray(data)) {
-          data.forEach((item) => wrap.appendChild(el('div', 'rt-list-item', typeof item === 'object' ? JSON.stringify(item) : String(item))));
+          if (!data.length) wrap.appendChild(el('div', 'rt-muted', p.empty || 'Sin datos'));
+          data.forEach((item, idx) => {
+            const row = el('div', 'rt-list-item');
+            row.style.cssText = 'padding:10px 0;border-bottom:1px solid rgba(255,255,255,.06);cursor:pointer';
+            if (item != null && typeof item === 'object') {
+              const title = item[titleF] ?? item.title ?? item.name ?? item.id ?? ('#' + idx);
+              const sub = subF ? (item[subF] ?? item.description ?? item.subtitle ?? '') : '';
+              const meta = metaF ? (item[metaF] ?? '') : '';
+              const tEl = el('div', '', String(title));
+              tEl.style.cssText = 'font-weight:600;color:#f4f4f5';
+              row.appendChild(tEl);
+              if (sub !== '' && sub != null) {
+                const sEl = el('div', 'rt-muted', String(sub));
+                sEl.style.fontSize = '12px';
+                row.appendChild(sEl);
+              }
+              if (meta !== '' && meta != null) {
+                const mEl = el('div', '', String(meta));
+                mEl.style.cssText = 'font-size:12px;color:#f5c542;margin-top:2px';
+                row.appendChild(mEl);
+              }
+            } else {
+              row.textContent = String(item);
+            }
+            row.onclick = () => {
+              if (p.selectState && ctx.setState) {
+                ctx.setState(p.selectState, item);
+                ctx.remount && ctx.remount();
+              }
+              ctx.emit && ctx.emit('action', { action: p.itemAction || 'select-item', item, index: idx });
+            };
+            wrap.appendChild(row);
+          });
         } else if (data && typeof data === 'object') {
-          wrap.appendChild(el('pre', 'rt-pre', JSON.stringify(data, null, 2)));
+          wrap.appendChild(el('pre', 'rt-pre', JSON.stringify(data, null, 2).slice(0, 1200)));
         } else wrap.appendChild(el('div', 'rt-muted', p.empty || 'Sin datos'));
         break;
       }
