@@ -211,6 +211,10 @@ function setDevice(id) {
   frame.className = 'device-frame ' + id;
   if (d.w) { frame.style.width = d.w + 'px'; frame.style.height = d.h + 'px'; }
   else { frame.style.width = '100%'; frame.style.maxWidth = '1000px'; frame.style.height = d.h + 'px'; }
+  try {
+    if (d.w) window.__ALSET_VIEWPORT_WIDTH__ = d.w;
+    else delete window.__ALSET_VIEWPORT_WIDTH__;
+  } catch (_) {}
   run();
 }
 
@@ -455,7 +459,24 @@ function enableFloatingPanels() {
     });
   });
 
-  console.log('[alset-editor] paneles flotantes listos:', document.querySelectorAll('.float-panel').length);
+  
+  // Hot-reload: al editar código (paréntesis/llaves balanceados aprox.)
+  let hotReloadTimer = null;
+  function scheduleHotReload() {
+    clearTimeout(hotReloadTimer);
+    hotReloadTimer = setTimeout(() => {
+      const src = getCode();
+      const open = (src.match(/[({[]/g) || []).length;
+      const close = (src.match(/[)}\]]/g) || []).length;
+      if (src.includes('function App') && open > 0 && Math.abs(open - close) <= 1) {
+        try { run(); setStatus('Hot-reload · ' + deviceId, true); } catch (_) {}
+      }
+    }, 600);
+  }
+  if (cm && cm.on) cm.on('change', scheduleHotReload);
+  else $('code')?.addEventListener('input', scheduleHotReload);
+
+console.log('[alset-editor] paneles flotantes listos:', document.querySelectorAll('.float-panel').length);
 }
 
 function saveLayout() {
