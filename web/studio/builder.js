@@ -1,4 +1,4 @@
-import { CATALOG, TEMPLATES, THEME_COLORS, DEVICES, createNode, treeToLisp, treeToApp, applyLispSnippet , ALSET_ICONS } from './components.js';
+import { CATALOG, TEMPLATES, THEME_COLORS, DEVICES, createNode, treeToLisp, treeToApp, treeToAlsetJS, applyLispSnippet , ALSET_ICONS } from './components.js';
 import { EXAMPLES } from './examples.js';
 import { renderAlsetPreview, stateDump, stateSet, stateLoad, clearAlsetStates, evalLispAgainstState } from './alsetBridge.js';
 import { installGlobalTraps, onError, getLastError, guard, reportError, StudioError } from './sandbox.js';
@@ -756,6 +756,33 @@ export function bootBuilder() {
     a.download = (app.name || 'app') + '.alset.json';
     a.click();
   };
+  const exportJsBtn = document.getElementById('btn-export-js');
+  if (exportJsBtn) {
+    exportJsBtn.onclick = () => {
+      const code = treeToAlsetJS(tree, { name: $('app-name').value || 'app', states: stateDump() });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(new Blob([code], { type: 'text/javascript' }));
+      a.download = ($('app-name').value || 'app') + '.alset.js';
+      a.click();
+      try {
+        sessionStorage.setItem('alset-js-export', code);
+        sessionStorage.setItem('alset-js-export-name', $('app-name').value || 'app');
+      } catch (_) {}
+      log('Export Alset-JS listo. También guardado para /alset-editor/');
+    };
+  }
+  const openJsBtn = document.getElementById('btn-open-js-editor');
+  if (openJsBtn) {
+    openJsBtn.onclick = () => {
+      const code = treeToAlsetJS(tree, { name: $('app-name').value || 'app', states: stateDump() });
+      try {
+        sessionStorage.setItem('alset-js-export', code);
+        sessionStorage.setItem('alset-js-export-name', $('app-name').value || 'app');
+      } catch (_) {}
+      window.open('/alset-editor/?from=studio', '_blank', 'noopener');
+    };
+  }
+
     $('btn-deploy').onclick = async () => {
     try {
       const payload = treeToApp(tree, {

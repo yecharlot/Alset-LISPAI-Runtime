@@ -327,5 +327,72 @@ $('btn-deploy').onclick = deploy;
 $('btn-examples').onclick = () => { $('examples-drawer').hidden = false; };
 $('btn-close-ex').onclick = () => { $('examples-drawer').hidden = true; };
 
-codeEl.value = TEMPLATES.counter;
+// Import from Studio export
+try {
+  const params = new URLSearchParams(location.search);
+  if (params.get('from') === 'studio') {
+    const code = sessionStorage.getItem('alset-js-export');
+    const n = sessionStorage.getItem('alset-js-export-name');
+    if (code) {
+      codeEl.value = code;
+      if (n) $('app-name').value = n;
+      setStatus('Importado desde Studio', true);
+    }
+  }
+} catch (_) {}
+
+if (!codeEl.value) codeEl.value = TEMPLATES.counter;
 setDevice('mobile');
+
+/** Bosquejo de layout → código (generador automático simple) */
+window.alsetSketchToCode = function sketchToCode(spec) {
+  // spec: lines like "titulo: Hola" "boton: Guardar" "mapa" "fila: A | B"
+  const lines = String(spec || '').split(/\n+/).map((l) => l.trim()).filter(Boolean);
+  const body = [];
+  const states = new Set();
+  lines.forEach((line) => {
+    const low = line.toLowerCase();
+    if (low.startsWith('titulo:') || low.startsWith('título:')) {
+      body.push('    Text(' + JSON.stringify(line.split(':').slice(1).join(':').trim()) + ', mod().sizeText(22).weight("800").color(Theme.current.primary));');
+    } else if (low.startsWith('texto:')) {
+      body.push('    Text(' + JSON.stringify(line.split(':').slice(1).join(':').trim()) + ', mod().sizeText(14).color("#999"));');
+    } else if (low.startsWith('boton:') || low.startsWith('botón:')) {
+      const lab = line.split(':').slice(1).join(':').trim() || 'OK';
+      body.push('    Button(' + JSON.stringify(lab) + ', () => {});');
+    } else if (low.startsWith('input:')) {
+      const name = line.split(':').slice(1).join(':').trim() || 'campo';
+      const id = name.replace(/[^a-zA-Z0-9_]/g, '_') || 'campo';
+      states.add(id);
+      body.push('    Input(' + id + ', mod().fillMaxWidth(), { placeholder: ' + JSON.stringify(name) + ' });');
+    } else if (low === 'mapa' || low.startsWith('mapa')) {
+      body.push('    MapNode(mod().height(220).radius(12), { center: [-82.36, 23.11], zoom: 12 });');
+    } else if (low.startsWith('fila:')) {
+      const parts = line.split(':').slice(1).join(':').split('|').map((x) => x.trim()).filter(Boolean);
+      body.push('    Row(mod().gap(8), () => {');
+      parts.forEach((p) => body.push('      Button(' + JSON.stringify(p) + ', () => {});'));
+      body.push('    });');
+    } else if (low.startsWith('card:')) {
+      const tit = line.split(':').slice(1).join(':').trim();
+      body.push('    Card(mod().padding(12), () => { Text(' + JSON.stringify(tit) + ', mod().weight("700")); });');
+    } else {
+      body.push('    Text(' + JSON.stringify(line) + ', mod().sizeText(14));');
+    }
+  });
+  const stDecl = [...states].map((s) => 'const ' + s + ' = alsetState("");').join('\n');
+  return (stDecl ? stDecl + '\n\n' : '') +
+    'function App() {\n  return Column(mod().padding(16).gap(12).fillMaxSize(), () => {\n' +
+    body.join('\n') + '\n  });\n}\n';
+};
+
+
+$('btn-sketch')?.addEventListener('click', () => { $('sketch-drawer').hidden = false; });
+$('btn-close-sketch')?.addEventListener('click', () => { $('sketch-drawer').hidden = true; });
+$('btn-apply-sketch')?.addEventListener('click', () => {
+  const src = $('sketch-src').value;
+  if (typeof window.alsetSketchToCode === 'function') {
+    codeEl.value = window.alsetSketchToCode(src);
+    $('sketch-drawer').hidden = true;
+    run();
+    setStatus('Código generado desde bosquejo', true);
+  }
+});

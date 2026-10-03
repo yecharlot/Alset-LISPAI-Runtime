@@ -506,6 +506,135 @@ export function treeToLisp(nodes) {
   return `(ui\n  (column (pad 8) (gap 10)\n${(nodes || []).map((n) => '    ' + one(n)).join('\n')}\n  )\n)`;
 }
 
+
+/**
+ * Exporta el árbol visual de Studio a código Alset-JS-Runtime (PulseCore).
+ * El resultado es un string listo para pegar en /alset-editor/ o desplegar como kind=alset-js.
+ */
+export function treeToAlsetJS(nodes, meta = {}) {
+  const name = meta.name || 'exported-app';
+  const states = meta.states || {};
+  const lines = [];
+  lines.push('// Generado desde Alset Studio → Alset-JS');
+  lines.push('// App: ' + name);
+  lines.push('// No edites a mano si vas a re-exportar; o bien toma esto como base.');
+  lines.push('');
+
+  const stateNames = new Set();
+  function walkCollect(list) {
+    (list || []).forEach((n) => {
+      const p = n.props || {};
+      ['state', 'bind', 'out', 'routeState', 'latState', 'lngState', 'source'].forEach((k) => {
+        if (p[k] && typeof p[k] === 'string') stateNames.add(p[k]);
+      });
+      walkCollect(n.children);
+    });
+  }
+  walkCollect(nodes);
+  Object.keys(states).forEach((k) => stateNames.add(k));
+
+  stateNames.forEach((s) => {
+    if (!s || s.startsWith('_')) return;
+    const init = states[s];
+    let initLit = '""';
+    if (typeof init === 'number') initLit = String(init);
+    else if (typeof init === 'boolean') initLit = init ? 'true' : 'false';
+    else if (Array.isArray(init)) initLit = JSON.stringify(init);
+    else if (init != null && typeof init === 'object') initLit = JSON.stringify(init);
+    else if (typeof init === 'string') initLit = JSON.stringify(init);
+    lines.push('const ' + safeIdent(s) + ' = alsetState(' + initLit + ');');
+  });
+  if (stateNames.size) lines.push('');
+
+  function safeIdent(s) {
+    let id = String(s).replace(/[^a-zA-Z0-9_]/g, '_');
+    if (/^[0-9]/.test(id)) id = 's_' + id;
+    return id || 'state';
+  }
+
+  function esc(s) {
+    return JSON.stringify(String(s ?? ''));
+  }
+
+  function modChain(n) {
+    const p = n.props || {};
+    const parts = ['mod()'];
+    if (p.pad != null && p.pad !== '') parts.push('.padding(' + Number(p.pad || 0) + ')');
+    if (p.gap != null && p.gap !== '') parts.push('.gap(' + Number(p.gap || 0) + ')');
+    if (p.height) parts.push('.height(' + Number(p.height) + ')');
+    if (p.radius) parts.push('.radius(' + Number(p.radius) + ')');
+    if (p.size) parts.push('.size(' + Number(p.size) + ')');
+    if (p.color === 'primary') parts.push('.color(Theme.current.primary)');
+    else if (p.color && typeof p.color === 'string' && p.color.startsWith('#')) parts.push('.color(' + esc(p.color) + ')');
+    if (p.weight) parts.push('.weight(' + esc(String(p.weight)) + ')');
+    if (p.fill) parts.push('.fillMaxWidth()');
+    return parts.join('');
+  }
+
+  function emit(n, indent) {
+    const sp = '  '.repeat(indent);
+    if (!n) return sp + 'null';
+    const t = n.type;
+    const p = n.props || {};
+    const kids = n.children || [];
+    const m = modChain(n);
+
+    if (t === 'text') {
+      return sp + 'Text(' + esc(p.text || '') + ', ' + m + ')';
+    }
+    if (t === 'button') {
+      const act = p.action ? '// action: ' + p.action + '\n' + sp + '  ' : '';
+      return sp + 'Button(' + esc(p.text || 'OK') + ', () => { ' + (p.action ? '/* ' + p.action + ' */' : '') + ' }, ' + m + ')';
+    }
+    if (t === 'icon') {
+      return sp + 'Icon(' + esc(p.name || 'pulse') + ', ' + m + ')';
+    }
+    if (t === 'input') {
+      const st = p.state ? safeIdent(p.state) : 'alsetState("")';
+      return sp + 'Input(' + st + ', ' + m + ', { placeholder: ' + esc(p.placeholder || '') + ' })';
+    }
+    if (t === 'map') {
+      const lat = p.lat != null ? p.lat : 23.11;
+      const lng = p.lng != null ? p.lng : -82.36;
+      return sp + 'MapNode(' + m + ', { center: [' + lng + ', ' + lat + '], zoom: ' + (p.zoom || 12) + ' })';
+    }
+    if (t === 'spacer') {
+      return sp + 'Spacer(' + (p.size || 12) + ')';
+    }
+    if (t === 'image') {
+      return sp + 'Image(' + esc(p.src || '') + ', ' + m + ')';
+    }
+    if (t === 'card' || t === 'surface' || t === 'glass' || t === 'column' || t === 'row' || t === 'stack' || t === 'gradient' || t === 'layer') {
+      const fn = t === 'row' ? 'Row' : t === 'card' || t === 'surface' ? 'Card' : t === 'gradient' ? 'GradientLayer' : 'Column';
+      if (fn === 'GradientLayer') {
+        const body = kids.length
+          ? '() => {\n' + kids.map((c) => emit(c, indent + 2)).join(';\n') + ';\n' + sp + '  }'
+          : '() => {}';
+        return sp + 'GradientLayer({ from: ' + esc(p.from || '#0b0e14') + ', to: ' + esc(p.to || '#f4b400') + ' }, ' + body + ', ' + m + ')';
+      }
+      const body = kids.length
+        ? '() => {\n' + kids.map((c) => emit(c, indent + 2)).join(';\n') + ';\n' + sp + '  }'
+        : '() => {}';
+      return sp + fn + '(' + m + ', ' + body + ')';
+    }
+    // fallback: column with comment
+    const body = kids.length
+      ? '() => {\n' + kids.map((c) => emit(c, indent + 2)).join(';\n') + ';\n' + sp + '  }'
+      : '() => { Text(' + esc('[' + t + ']') + '); }';
+    return sp + '/* ' + t + ' */ Column(' + m + ', ' + body + ')';
+  }
+
+  lines.push('function App() {');
+  lines.push('  return Column(mod().padding(12).gap(10).fillMaxSize(), () => {');
+  (nodes || []).forEach((n) => {
+    lines.push(emit(n, 2) + ';');
+  });
+  lines.push('  });');
+  lines.push('}');
+  lines.push('');
+  return lines.join('\n');
+}
+
 export function treeToApp(nodes, meta = {}) {
   return {
     format: 'alset-app/v1',

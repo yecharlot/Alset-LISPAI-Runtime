@@ -51,3 +51,29 @@ En un nodo Alset puedes registrar esa carpeta y servirla como `/w/tu-nombre.app.
 | AlsetOS | Sí | Sí (mismo ANS) |
 
 Ambos pueden convivir en el ecosistema. Elige Studio si prefieres el ratón; Alset-JS si quieres el poder total del runtime en código.
+
+## Export desde Studio → Alset-JS
+
+En **Alset Studio**:
+
+1. Construye el árbol visual.
+2. **→ Alset-JS**: descarga `.alset.js` generado (`treeToAlsetJS`).
+3. **JS Editor**: abre `/alset-editor/?from=studio` con el código en `sessionStorage`.
+
+Los estados del bridge se declaran como `alsetState(...)`. Column/Row/Card/Text/Button/Map/Icon/Input/Gradient se mapean a primitivas PulseCore. Tipos aún no mapeados salen como comentario + Column.
+
+## Bosquejo → código
+
+En el Alset-JS Editor, **Bosquejo→código**:
+
+```text
+titulo: Mi tienda
+texto: Ofertas del día
+boton: Ver catálogo
+input: buscar
+fila: Inicio | Carrito | Perfil
+mapa
+card: Producto destacado
+```
+
+Genera un `function App()` listo para ejecutar y desplegar.
